@@ -10,6 +10,9 @@
             <input type="text" id="name" name="name" value="<?= e($user['name']) ?>" required>
             <label>Adresse e-mail</label>
             <p><?= e($user['email']) ?> <?= $user['email_verified_at'] ? '<span class="pastille">confirmée</span>' : '<span class="pastille orange">à confirmer</span>' ?></p>
+            <h3 style="margin-top:22px">Lettre d’information</h3>
+            <label class="case"><input type="checkbox" name="newsletter" value="1" <?= $user['newsletter_at'] ? 'checked' : '' ?>> Recevoir les nouveautés de Suivi des animaux par e-mail (quelques fois par an).</label>
+            <?php if ($user['newsletter_at'] && !$user['email_verified_at']): ?><p class="discret petit">Elle vous sera envoyée une fois votre adresse confirmée.</p><?php endif ?>
             <h3 style="margin-top:22px">Changer de mot de passe</h3>
             <label for="current_password">Mot de passe actuel</label>
             <input type="password" id="current_password" name="current_password" autocomplete="current-password">

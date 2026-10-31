@@ -39,7 +39,8 @@ function page_contact(): void
         if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($message) < 10) {
             $errors[] = 'Indiquez votre nom, une adresse e-mail valide et votre message.';
         } else {
-            send_mail((string)config('support_email'), "Contact : $name", "$name <$email>\n\n$message");
+            // « Répondre » depuis la boîte d'assistance écrit directement à la personne.
+            send_mail((string)config('support_email'), "Contact : $name", "$name <$email>\n\n$message", ['reply_to' => $email]);
             $sent = true;
         }
     }

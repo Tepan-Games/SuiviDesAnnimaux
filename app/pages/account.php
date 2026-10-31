@@ -9,10 +9,11 @@ function page_register(): void
         redirect('/compte');
     }
     $errors = [];
-    $values = ['name' => '', 'email' => input('email'), 'kind' => input('type', 'Particulier'), 'organisation' => ''];
+    $values = ['name' => '', 'email' => input('email'), 'kind' => input('type', 'Particulier'), 'organisation' => '', 'newsletter' => false];
     if (is_post()) {
         csrf_check();
-        $values = ['name' => input('name'), 'email' => mb_strtolower(input('email')), 'kind' => input('kind'), 'organisation' => input('organisation')];
+        $values = ['name' => input('name'), 'email' => mb_strtolower(input('email')), 'kind' => input('kind'), 'organisation' => input('organisation'),
+            'newsletter' => !empty($_POST['newsletter'])];
         $errors = validate_registration($values['name'], $values['email'], (string)($_POST['password'] ?? ''));
         $structure = $values['kind'] !== 'Particulier';
         if ($structure && mb_strlen($values['organisation']) < 2) {
@@ -24,6 +25,7 @@ function page_register(): void
         if (!$errors) {
             $userId = create_user($values['name'], $values['email'], (string)$_POST['password']);
             $user = q('SELECT * FROM users WHERE id = ?', [$userId])->fetch();
+            set_newsletter_subscription($userId, !empty($_POST['newsletter']));
             if ($structure) {
                 create_organisation($userId, $values['organisation'], $values['kind']);
             }
@@ -161,6 +163,7 @@ function page_profile(): void
         }
         if (!$errors) {
             q('UPDATE users SET name = ? WHERE id = ?', [$name, $user['id']]);
+            set_newsletter_subscription((int)$user['id'], !empty($_POST['newsletter']));
             if ($new !== '') {
                 q('UPDATE users SET password_hash = ? WHERE id = ?', [password_hash($new, PASSWORD_DEFAULT), $user['id']]);
                 audit('compte.mot_de_passe');

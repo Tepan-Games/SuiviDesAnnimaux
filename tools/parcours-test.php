@@ -99,7 +99,7 @@ check($code === 200 && str_contains($body, '--vert'), 'Feuille de style');
 // ===== Inscription d'une association, confirmation =====
 $token = csrf('a', '/inscription');
 [$code] = http('a', '/inscription', ['csrf' => $token, 'kind' => 'Association', 'organisation' => 'Asso Test', 'name' => 'Alice Responsable',
-    'email' => 'Alice@Test.fr', 'password' => 'motdepasse-solide', 'cgu' => '1']);
+    'email' => 'Alice@Test.fr', 'password' => 'motdepasse-solide', 'cgu' => '1', 'newsletter' => '1']);
 check($code === 302, 'Inscription : redirection attendue');
 [$code, $body] = http('a', '/compte');
 check($code === 200 && str_contains($body, 'Asso Test') && str_contains($body, 'Confirmez votre adresse'), 'Tableau de bord après inscription');
@@ -175,6 +175,73 @@ check(q('SELECT status FROM tickets WHERE id = ?', [$ticketId])->fetchColumn() =
       && (int)q('SELECT COUNT(*) FROM ticket_messages WHERE ticket_id = ?', [$ticketId])->fetchColumn() === 3, 'Réponse du client : demande rouverte');
 [, $body] = http('a', '/admin/journal');
 check(str_contains($body, 'licence.modification') && str_contains($body, 'invitation.acceptation'), 'Journal des actions');
+
+// ===== Lettre d'information =====
+check(q("SELECT newsletter_at FROM users WHERE email = 'alice@test.fr'")->fetchColumn() !== null
+      && q('SELECT newsletter_at FROM users WHERE id = ?', [$bobId])->fetchColumn() === null, 'Abonnement seulement si la case est cochée à l’inscription');
+$log = (string)file_get_contents(STORAGE_DIR . '/mails.log');
+check(str_contains($log, 'De : Suivi des animaux <noreply@suivi-des-animaux.fr>') && str_contains($log, 'Répondre à : support@suivi-des-animaux.fr'),
+    'E-mails automatiques : expéditeur noreply@, réponses vers support@');
+$token = csrf('b', '/compte/profil');
+http('b', '/compte/profil', ['csrf' => $token, 'name' => 'Bob Bénévole', 'newsletter' => '1']);
+check(q('SELECT newsletter_at FROM users WHERE id = ?', [$bobId])->fetchColumn() !== null, 'Abonnement depuis le profil');
+check(newsletter_subscriber_count() === 1, 'Adresse non confirmée : pas encore destinataire');
+q('UPDATE users SET email_verified_at = ? WHERE id = ?', [now(), $bobId]);
+q("INSERT INTO users (email, name, password_hash, email_verified_at, newsletter_at, created_at) VALUES ('carol@test.fr', 'Carol', 'x', NOW(), NOW(), NOW()),
+   ('dan@test.fr', 'Dan', 'x', NOW(), NULL, NOW())");
+check(newsletter_subscriber_count() === 3, 'Trois abonnés confirmés');
+[$code] = http('b', '/admin/lettres');
+check($code === 403, 'Lettres réservées à l’administration');
+$token = csrf('a', '/admin/lettres');
+[$code, , $location] = http('a', '/admin/lettres', ['csrf' => $token]);
+$letterId = (int)q('SELECT MAX(id) FROM newsletters')->fetchColumn();
+check($code === 302 && str_contains($location, "/admin/lettre?id=$letterId"), 'Nouvelle lettre créée');
+[, $body] = http('a', "/admin/lettre?id=$letterId");
+check(str_contains($body, 'Voici les nouveautés') && str_contains($body, 'Bonjour Alice Responsable'), 'Modèle de lettre et aperçu personnalisé');
+$token = csrf('a', "/admin/lettre?id=$letterId");
+[, $body] = http('a', "/admin/lettre?id=$letterId", ['csrf' => $token, 'action' => 'enregistrer', 'subject' => 'x', 'body' => 'court']);
+check(str_contains($body, 'L’objet doit faire'), 'Lettre incomplète refusée');
+$letterBody = "Bonjour {nom},\n\nLa version 3 est sortie : pesées plus rapides.\nDétails : {site}/fonctionnalites";
+http('a', "/admin/lettre?id=$letterId", ['csrf' => $token, 'action' => 'essai', 'subject' => 'Novembre : la version 3', 'body' => $letterBody]);
+$log = (string)file_get_contents(STORAGE_DIR . '/mails.log');
+check(str_contains($log, 'À : alice@test.fr') && str_contains($log, '/desinscription?t=essai') && !str_contains($log, 'À : carol@test.fr'),
+    'Essai envoyé à l’administrateur seulement');
+http('a', "/admin/lettre?id=$letterId", ['csrf' => $token, 'action' => 'envoyer', 'subject' => 'Novembre : la version 3', 'body' => $letterBody]);
+check(q('SELECT queued_at FROM newsletters WHERE id = ?', [$letterId])->fetchColumn() === null, 'Envoi refusé sans la case de confirmation');
+http('a', "/admin/lettre?id=$letterId", ['csrf' => $token, 'action' => 'envoyer', 'subject' => 'Novembre : la version 3', 'body' => $letterBody, 'confirmation' => '1']);
+$stats = newsletter_stats($letterId);
+check($stats['total'] === 3 && $stats['sent'] === 2 && $stats['pending'] === 1, 'Envoi par lots (2 par lot dans le test)');
+$log = (string)file_get_contents(STORAGE_DIR . '/mails.log');
+check(str_contains($log, 'De : Suivi des animaux <newsletter@suivi-des-animaux.fr>') && str_contains($log, 'List-Unsubscribe-Post: List-Unsubscribe=One-Click')
+      && str_contains($log, 'Bonjour Bob Bénévole,') && str_contains($log, 'Détails : http://localhost:8080/fonctionnalites') && !str_contains($log, 'À : dan@test.fr'),
+    'Lettre personnalisée, expéditeur newsletter@, en-têtes de désinscription');
+[, $body] = http('a', "/admin/lettre?id=$letterId", ['csrf' => $token, 'action' => 'enregistrer', 'subject' => 'Modifiée', 'body' => $letterBody . ' modifiée']);
+check(q('SELECT subject FROM newsletters WHERE id = ?', [$letterId])->fetchColumn() === 'Novembre : la version 3', 'Lettre envoyée non modifiable');
+http('a', "/admin/lettre?id=$letterId", ['csrf' => $token, 'action' => 'lot']);
+$stats = newsletter_stats($letterId);
+check($stats['sent'] === 3 && $stats['pending'] === 0 && q('SELECT finished_at FROM newsletters WHERE id = ?', [$letterId])->fetchColumn() !== null,
+    'Lot suivant : envoi terminé');
+check(q('SELECT COUNT(*) FROM newsletter_deliveries WHERE token_hash IS NULL OR LENGTH(token_hash) <> 64')->fetchColumn() == 0, 'Jetons de désinscription gardés en empreinte');
+// Désinscription : page de confirmation, puis bouton (sans session) ; désabonnement en un clic des messageries
+preg_match_all('#À : (\S+)\n(?:(?!====).)*?/desinscription\?t=([0-9a-f]{48})#s', $log . (string)file_get_contents(STORAGE_DIR . '/mails.log'), $links, PREG_SET_ORDER);
+$byEmail = [];
+foreach ($links as [, $email, $link]) {
+    $byEmail[$email] = $link;
+}
+check(isset($byEmail['bob@test.fr'], $byEmail['carol@test.fr']), 'Liens de désinscription dans les lettres');
+[$code, $body] = http('visiteur', '/desinscription?t=' . $byEmail['bob@test.fr']);
+check($code === 200 && str_contains($body, 'Me désinscrire') && q('SELECT newsletter_at FROM users WHERE id = ?', [$bobId])->fetchColumn() !== null,
+    'Ouvrir le lien ne désinscrit pas encore');
+[$code, $body] = http('visiteur', '/desinscription?t=' . $byEmail['bob@test.fr'], []);
+check($code === 200 && str_contains($body, 'C’est fait') && q('SELECT newsletter_at FROM users WHERE id = ?', [$bobId])->fetchColumn() === null, 'Désinscription par le lien');
+[$code, $body] = http('visiteur', '/desinscription?t=' . $byEmail['carol@test.fr'], ['List-Unsubscribe' => 'One-Click']);
+check($code === 200 && q("SELECT newsletter_at FROM users WHERE email = 'carol@test.fr'")->fetchColumn() === null, 'Désinscription en un clic (messagerie)');
+[$code] = http('visiteur', '/desinscription?t=' . str_repeat('0', 48), []);
+[$code2] = http('visiteur', '/desinscription?t=essai');
+check($code === 404 && $code2 === 404, 'Lien de désinscription inconnu');
+check(newsletter_stats($letterId)['unsubscribed'] === 2 && newsletter_subscriber_count() === 1, 'Désinscriptions comptées');
+[, $body] = http('a', '/admin/lettres');
+check(str_contains($body, 'Novembre : la version 3') && str_contains($body, '3 / 3'), 'Liste des lettres');
 
 // ===== Membres : rôles, retrait, dernier responsable =====
 $token = csrf('a', "/compte/structure?id=$organisationId");

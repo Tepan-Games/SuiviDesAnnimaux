@@ -21,6 +21,7 @@ $kinds = array_merge(['Particulier'], ORGANISATION_KINDS);
         <input type="email" id="email" name="email" required autocomplete="email" value="<?= e($values['email']) ?>">
         <label for="password">Mot de passe <span class="discret petit">(au moins <?= PASSWORD_MIN_LENGTH ?> caractères)</span></label>
         <input type="password" id="password" name="password" required minlength="<?= PASSWORD_MIN_LENGTH ?>" autocomplete="new-password">
+        <label class="case"><input type="checkbox" name="newsletter" value="1" <?= $values['newsletter'] ? 'checked' : '' ?>> Je veux recevoir la lettre d’information (nouveautés, quelques fois par an ; désinscription en un clic).</label>
         <label class="case"><input type="checkbox" name="cgu" value="1"> J’accepte les conditions d’utilisation et la <a href="/confidentialite" target="_blank">politique de confidentialité</a>.</label>
         <div class="actions-formulaire">
             <button class="bouton" type="submit">Créer mon compte</button>

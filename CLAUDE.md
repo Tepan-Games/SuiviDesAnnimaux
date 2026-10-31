@@ -15,7 +15,12 @@ assistance, administration. Logiciel Windows : dépôt `C:\Users\arcuc\Projects\
   jeton `Authorization: Bearer`, stockage de synchronisation `storage/sync/<id structure>/`).
 - `app/pages/` : fonctions `page_*` appelées par `www/index.php` (`api.php` : adresses `/api/…`, sans session ni
   cookie) ; `app/templates/` : écrans.
-- `database/schema.sql` : schéma complet (un changement s'applique à la main dans phpMyAdmin chez OVH).
+- `database/schema.sql` : schéma complet (un changement s'applique à la main dans phpMyAdmin chez OVH) ; chaque
+  changement a aussi son fichier `database/migrations/<date>-<sujet>.sql` pour la base déjà en ligne.
+- E-mails (`docs/adresses-e-mail.md`) : `mail.from` = noreply@ (e-mails automatiques), `support_email` = support@
+  (assistance, contact, « Répondre » de tous les e-mails), `newsletter.from` = newsletter@. Lettre d'information :
+  `app/lib/newsletter.php`, `app/pages/newsletter.php` (administration `/admin/lettres`, `/desinscription`) ; seulement
+  aux comptes abonnés (`users.newsletter_at`) à l'adresse confirmée, envoi par lots, jeton de désinscription par envoi.
 - Rôles (`ROLES`) identiques au logiciel (`SpaceRoles` : responsable, soins, accueil, tresorier, consultation).
 
 ## Règles
