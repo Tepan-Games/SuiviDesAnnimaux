@@ -42,7 +42,7 @@ $active = fn(string $prefix) => ($prefix === '/' ? $path === '/' : str_starts_wi
 </main>
 <footer class="pied">
     <div class="contenu">
-        <div>© <?= date('Y') ?> Tepan Games — Suivi des animaux</div>
+        <div>© <?= date('Y') ?> TepanSofts — Suivi des animaux</div>
         <nav aria-label="Informations">
             <a href="/contact">Contact</a>
             <a href="/mentions-legales">Mentions légales</a>
