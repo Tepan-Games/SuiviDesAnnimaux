@@ -3,6 +3,12 @@ RewriteEngine On
 RewriteCond %{HTTPS} off
 RewriteCond %{HTTP_HOST} !^localhost [NC]
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Avant l'ouverture : site réservé à l'adresse IP de Tepan Games (ajouter une ligne RewriteCond par adresse
+# autorisée) ; les autres visiteurs voient la page « Nous arrivons bientôt ». Supprimer ce bloc à l'ouverture.
+RewriteCond %{REMOTE_ADDR} !^88\.187\.160\.248$
+RewriteCond %{REQUEST_URI} !(bientot\.html|/assets/img/logo\.png|/favicon\.ico)$
+RewriteRule ^ bientot.html [L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^ index.php [QSA,L]
 
