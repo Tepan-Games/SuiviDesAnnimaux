@@ -25,6 +25,10 @@ return [
     'download_pc' => 'https://github.com/Tepan-Games/SuiviAnimaux-versions/releases/latest',
     'download_android' => 'https://play.google.com/store/apps/details?id=com.tepangames.suivianimaux',
 
+    // Synchronisation des structures (facultatif) : taille maximale d'un fichier envoyé, en octets (30 Mo par défaut).
+    // Rester sous les réglages post_max_size et upload_max_filesize de PHP chez OVH.
+    // 'sync' => ['max_bytes' => 30 * 1024 * 1024],
+
     // Affiche les erreurs PHP (uniquement en local).
     'debug' => false,
 ];

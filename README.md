@@ -51,10 +51,18 @@ powershell -ExecutionPolicy Bypass -File tools/test-local.ps1
 
 Démarre une base MySQL de test dans `test-output/`, importe le schéma, lance le serveur PHP sur
 http://localhost:8080 et passe le parcours complet (inscription, confirmation, structure, invitation, assistance,
-administration). Les e-mails sont écrits dans `storage/mails.log`.
+administration, appareils et API de synchronisation). Les e-mails sont écrits dans `storage/mails.log`.
+Sous Linux avec MariaDB : `bash tools/test-local.sh`.
+
+## Synchronisation des structures
+
+Le logiciel et l'application se connectent au site (adresse e-mail et mot de passe, ou code à usage unique généré
+dans *Mon compte › Appareils*, avec QR code) puis lisent et écrivent les fichiers de synchronisation de chaque
+structure par l'API `/api/…` (voir `docs/synchronisation-par-le-site.md`). Les fichiers sont dans
+`storage/sync/<id structure>/`, jamais servis par le web.
 
 ## À venir
 
 - Interface en ligne des fiches des animaux (lecture et saisie depuis un navigateur).
-- API de synchronisation pour le logiciel et l'application (structures), avec filtrage par rôle.
+- Filtrage par rôle des données synchronisées par le site.
 - Paiement des abonnements en ligne (Stripe) et factures.

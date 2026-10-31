@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
     UNIQUE KEY ux_users_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Jetons à usage unique (confirmation de l'adresse, nouveau mot de passe) : seule leur empreinte est gardée.
+-- Jetons à usage unique (confirmation de l'adresse, nouveau mot de passe, code « appareil » de connexion d'un appareil) : seule leur empreinte est gardée.
 CREATE TABLE IF NOT EXISTS user_tokens (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id INT UNSIGNED NOT NULL,
@@ -28,6 +28,21 @@ CREATE TABLE IF NOT EXISTS user_tokens (
     created_at DATETIME NOT NULL,
     UNIQUE KEY ux_tokens_hash (token_hash),
     CONSTRAINT fk_tokens_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Appareils connectés au compte (logiciel Windows, application Android) pour la synchronisation des structures :
+-- jeton reçu une fois à la connexion, seule son empreinte est gardée ; révoqué par « Déconnecter » dans l'espace client.
+CREATE TABLE IF NOT EXISTS devices (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    name VARCHAR(120) NOT NULL DEFAULT '',
+    token_hash CHAR(64) NOT NULL,
+    created_at DATETIME NOT NULL,
+    last_seen_at DATETIME NULL,
+    revoked_at DATETIME NULL,
+    UNIQUE KEY ux_devices_hash (token_hash),
+    KEY ix_devices_user (user_id),
+    CONSTRAINT fk_devices_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Tentatives de connexion (limite contre les essais de mots de passe).

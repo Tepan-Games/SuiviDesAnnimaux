@@ -8,7 +8,7 @@ if (PHP_SAPI === 'cli-server' && is_file(__DIR__ . parse_url($_SERVER['REQUEST_U
 
 // Seul fichier PHP public : tout le code est hors du dossier www (inaccessible depuis le web).
 require __DIR__ . '/../app/bootstrap.php';
-foreach (['public', 'account', 'organisation', 'support', 'admin'] as $pages) {
+foreach (['public', 'account', 'organisation', 'support', 'admin', 'devices', 'api'] as $pages) {
     require APP_ROOT . "/pages/$pages.php";
 }
 
@@ -39,6 +39,7 @@ $routes = [
     '/compte/assistance' => 'page_support',
     '/compte/demande' => 'page_ticket',
     '/application' => 'page_online_app',
+    '/compte/appareils' => 'page_devices',
     // Administration
     '/admin' => 'page_admin_dashboard',
     '/admin/clients' => 'page_admin_clients',
@@ -47,15 +48,25 @@ $routes = [
     '/admin/assistance' => 'page_admin_support',
     '/admin/ticket' => 'page_admin_ticket',
     '/admin/journal' => 'page_admin_log',
+    // API du logiciel et de l'application (JSON, jeton « Authorization: Bearer »)
+    '/api/connexion' => 'page_api_login',
+    '/api/code' => 'page_api_code',
+    '/api/deconnexion' => 'page_api_logout',
+    '/api/structures' => 'page_api_organisations',
+    '/api/sync/liste' => 'page_api_sync_list',
+    '/api/sync/fichier' => 'page_api_sync_file',
 ];
 
 if (!isset($routes[$path])) {
-    not_found();
+    $GLOBALS['is_api'] ? api_error(404, 'adresse', 'Adresse inconnue.') : not_found();
 }
 try {
     $routes[$path]();
-} catch (PDOException $exception) {
+} catch (PDOException|RuntimeException $exception) {
     error_log((string)$exception);
+    if ($GLOBALS['is_api']) {
+        api_error(503, 'indisponible', 'Le service est momentanément indisponible. Réessayez dans quelques minutes.');
+    }
     http_response_code(500);
     view('error', ['message' => 'Le service est momentanément indisponible. Réessayez dans quelques minutes.'], 'Erreur');
 }
