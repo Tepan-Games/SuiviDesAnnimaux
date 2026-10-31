@@ -45,6 +45,17 @@ liens de confirmation, de mot de passe et d'invitation à usage unique dont seul
    webhook proposé par OVH). Un changement de `database/schema.sql` s'applique à la main dans phpMyAdmin
    (fichiers de `database/migrations/`, dans l'ordre des dates).
 
+## Administration des clients et des licences
+
+*Administration › Clients et licences* : recherche (structure, titulaire, e-mail, SIRET), filtres (état, formule, type,
+alertes : fin dépassée, fin dans les 30 jours, au-delà de la formule, sans licence), animaux présents comparés à la
+limite de la formule (d'après les données synchronisées), dernières données reçues, export CSV (Excel). Fiche d'un
+client : licence (formulaire complet, prolonger d'un mois ou d'un an, suspendre, réactiver, résilier), coordonnées,
+membres (rôles, ajout d'un compte existant, retrait, changement de titulaire), message aux responsables, appareils
+connectés, taille des données, demandes d'assistance et historique. *Formules* : noms, prix, limite d'animaux, ordre,
+proposée ou retirée de la page Tarifs, création. Le tableau de bord liste les licences à régulariser (fin dépassée,
+dépassement de la formule) et le nombre de licences par formule.
+
 ## Lettre d'information
 
 *Administration › Lettres d'information* : nouvelle lettre (modèle proposé, `{nom}` et `{site}` remplacés à l'envoi),

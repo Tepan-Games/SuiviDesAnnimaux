@@ -83,6 +83,7 @@ function page_organisation(): void
         'members' => organisation_members($id),
         'invitations' => $manage ? pending_invitations($id) : [],
         'licence' => organisation_licence($id),
+        'usage' => organisation_usage($id),
         'newLink' => $newLink,
         'user' => $user,
     ], $organisation['name']);

@@ -192,3 +192,8 @@ summary { cursor: pointer; color: var(--vert); font-weight: 600; }
 .galerie { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
 .galerie figure { margin: 0; }
 .galerie img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; display: block; }
+
+/* Administration */
+.boutons { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.boutons form { margin: 0; }
+.tableau input[type=text] { margin: 0; padding: 6px 8px; width: auto; min-width: 0; }

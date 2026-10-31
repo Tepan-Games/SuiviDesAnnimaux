@@ -26,6 +26,10 @@ assistance, administration. Logiciel Windows : dépôt `C:\Users\arcuc\Projects\
   (assistance, contact, « Répondre » de tous les e-mails), `newsletter.from` = newsletter@. Lettre d'information :
   `app/lib/newsletter.php`, `app/pages/newsletter.php` (administration `/admin/lettres`, `/desinscription`) ; seulement
   aux comptes abonnés (`users.newsletter_at`) à l'adresse confirmée, envoi par lots, jeton de désinscription par envoi.
+- Administration des clients (`app/pages/admin.php`) : `admin_clients()` (filtres, alertes `licence_alerts()`, utilisation
+  `organisation_usage()` lue dans les données synchronisées), actions de la fiche client par `action`, formules
+  `/admin/formules` (jamais supprimées). Toute action sur une structure est notée dans `audit_log` avec un détail
+  commençant par « Structure n°<id> » (historique de la fiche).
 - Rôles (`ROLES`) identiques au logiciel (`SpaceRoles` : responsable, soins, accueil, tresorier, consultation).
 
 ## Règles

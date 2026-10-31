@@ -532,4 +532,93 @@ api('POST', "/api/sync/fichier?o=$organisationId&chemin=journaux/000000000000000
 check(str_contains($body, 'version plus récente') && str_contains($body, 'Rex III'), 'Interface en ligne : données d’une version plus récente signalées');
 api('POST', '/api/deconnexion', null, $syncToken);
 
+// ===== Administration des clients et des licences =====
+[, $body] = http('visiteur', '/confidentialite');
+check(str_contains($body, 'interface en ligne') && str_contains($body, 'synchronisent leurs données par ce site'), 'Confidentialité : données des structures sur le site');
+[$code] = http('g', '/admin/formules');
+check($code === 403, 'Formules réservées à l’administration');
+$token = csrf('a', '/admin/formules');
+http('a', '/admin/formules', ['csrf' => $token, 'action' => 'nouvelle', 'code' => 'mini', 'name' => 'Mini test', 'monthly' => '4,50', 'yearly' => '45',
+    'max_animals' => '1', 'sort_order' => '9', 'active' => '1']);
+$mini = q("SELECT * FROM plans WHERE code = 'mini'")->fetch();
+check($mini && (int)$mini['monthly_price_cents'] === 450 && (int)$mini['max_animals'] === 1, 'Formule créée (prix en centimes, limite)');
+[, $body] = http('visiteur', '/tarifs');
+check(str_contains($body, 'Mini test') && str_contains($body, '4,50 €'), 'Nouvelle formule sur la page Tarifs');
+[, $body] = http('a', '/admin/formules', ['csrf' => $token, 'action' => 'nouvelle', 'code' => 'mini', 'name' => 'Doublon', 'monthly' => '1', 'yearly' => '1']);
+check(q("SELECT name FROM plans WHERE code = 'mini'")->fetchColumn() === 'Mini test', 'Code de formule déjà pris refusé');
+
+$client = "/admin/client?id=$organisationId";
+$token = csrf('a', $client);
+$post = fn(array $fields) => http('a', $client, ['csrf' => $token] + $fields);
+$post(['action' => 'licence', 'plan' => 'mini', 'status' => 'active', 'billing' => 'mois', 'starts_at' => '2026-01-01', 'ends_at' => '2026-02-01', 'notes' => 'Test']);
+[, $body] = http('a', $client);
+check(str_contains($body, 'Plus d’animaux présents que la formule n’en permet : 2 animaux pour 1') && str_contains($body, 'La date de fin de la licence'),
+    'Fiche client : alertes dépassement et fin dépassée');
+check(str_contains($body, '2 / 1') && str_contains($body, 'Appareils connectés') && str_contains($body, 'Données synchronisées'), 'Fiche client : utilisation');
+[, $body] = http('a', '/admin/clients?alerte=depassement');
+check(str_contains($body, 'Asso Test') && str_contains($body, 'Au-delà de la formule'), 'Clients : filtre « au-delà de la formule »');
+[, $body] = http('a', '/admin/clients?alerte=fin_depassee&formule=mini&etat=active&type=Association');
+check(str_contains($body, 'Asso Test'), 'Clients : filtres combinés');
+[, $body] = http('a', '/admin/clients?etat=suspendue');
+check(!str_contains($body, 'Asso Test'), 'Clients : filtre de l’état');
+[, $body] = http('a', '/admin');
+check(str_contains($body, 'À régulariser') && str_contains($body, 'Fin dépassée') && str_contains($body, 'Mini test'), 'Tableau de bord : licences à régulariser, par formule');
+[, $body] = http('a', "/compte/structure?id=$organisationId");
+check(str_contains($body, '2 animaux présents') && str_contains($body, 'plus d’animaux que sa formule'), 'Espace client : utilisation de la formule');
+
+$post(['action' => 'prolonger', 'duree' => 'an']);
+check(q('SELECT ends_at FROM licences WHERE organisation_id = ?', [$organisationId])->fetchColumn() === date('Y-m-d', strtotime('+1 year')),
+    'Prolonger d’un an à partir d’aujourd’hui (fin passée)');
+$post(['action' => 'prolonger', 'duree' => 'mois']);
+check(q('SELECT ends_at FROM licences WHERE organisation_id = ?', [$organisationId])->fetchColumn() === date('Y-m-d', strtotime(date('Y-m-d', strtotime('+1 year')) . ' +1 month')),
+    'Prolonger d’un mois à partir de la fin');
+$post(['action' => 'etat', 'status' => 'suspendue']);
+[, $body] = http('a', "/compte/structure?id=$organisationId");
+check(q('SELECT status FROM licences WHERE organisation_id = ?', [$organisationId])->fetchColumn() === 'suspendue'
+      && str_contains($body, 'ne peuvent plus en envoyer'), 'Licence suspendue, signalée au client');
+$post(['action' => 'prolonger', 'duree' => 'mois']);
+check(q('SELECT status FROM licences WHERE organisation_id = ?', [$organisationId])->fetchColumn() === 'active', 'Prolonger réactive la licence');
+$before = q('SELECT * FROM licences WHERE organisation_id = ?', [$organisationId])->fetch();
+$post(['action' => 'licence', 'plan' => 'association', 'status' => 'active', 'billing' => 'an', 'starts_at' => '2026-05-01', 'ends_at' => '2026-04-01']);
+check(q('SELECT * FROM licences WHERE organisation_id = ?', [$organisationId])->fetch() == $before, 'Licence : fin avant le début refusée');
+$post(['action' => 'licence', 'plan' => 'inconnue', 'status' => 'active', 'billing' => 'an', 'starts_at' => '2026-05-01', 'ends_at' => '']);
+check(q('SELECT plan_code FROM licences WHERE organisation_id = ?', [$organisationId])->fetchColumn() === 'mini', 'Licence : formule inconnue refusée');
+$post(['action' => 'licence', 'plan' => 'association', 'status' => 'active', 'billing' => 'an', 'starts_at' => '2026-01-01', 'ends_at' => '']);
+
+$post(['action' => 'infos', 'name' => 'Asso Test', 'kind' => 'Pension', 'contact_email' => 'contact@asso.test', 'phone' => '0102030405', 'address' => '1 rue des Chats', 'siret' => 'W123456789']);
+check(q('SELECT kind FROM organisations WHERE id = ?', [$organisationId])->fetchColumn() === 'Pension', 'Coordonnées modifiées par l’administration');
+$post(['action' => 'infos', 'name' => 'Asso Test', 'kind' => 'Inconnu', 'contact_email' => 'pas-une-adresse']);
+check(q('SELECT kind FROM organisations WHERE id = ?', [$organisationId])->fetchColumn() === 'Pension', 'Coordonnées invalides refusées');
+$post(['action' => 'infos', 'name' => 'Asso Test', 'kind' => 'Association', 'contact_email' => '', 'phone' => '', 'address' => '', 'siret' => '']);
+
+$henriId = (int)q("SELECT id FROM users WHERE email = 'henri@test.fr'")->fetchColumn();
+$aliceId = (int)q("SELECT id FROM users WHERE email = 'alice@test.fr'")->fetchColumn();
+$post(['action' => 'ajouter', 'email' => 'inconnu@test.fr', 'roles' => ['soins']]);
+$post(['action' => 'ajouter', 'email' => 'Henri@Test.fr', 'roles' => ['soins']]);
+check(q('SELECT roles FROM memberships WHERE organisation_id = ? AND user_id = ?', [$organisationId, $henriId])->fetchColumn() === 'soins'
+      && !q("SELECT 1 FROM users WHERE email = 'inconnu@test.fr'")->fetch(), 'Membre ajouté par l’administration (compte existant seulement)');
+$post(['action' => 'titulaire', 'member' => (string)$henriId]);
+check((int)q('SELECT owner_user_id FROM organisations WHERE id = ?', [$organisationId])->fetchColumn() === $henriId
+      && q('SELECT roles FROM memberships WHERE organisation_id = ? AND user_id = ?', [$organisationId, $henriId])->fetchColumn() === 'responsable,soins',
+    'Nouveau titulaire, devenu responsable');
+$post(['action' => 'retirer', 'member' => (string)$henriId]);
+check(q('SELECT 1 FROM memberships WHERE organisation_id = ? AND user_id = ?', [$organisationId, $henriId])->fetch() !== false, 'Le titulaire ne peut pas être retiré');
+$post(['action' => 'titulaire', 'member' => (string)$aliceId]);
+$post(['action' => 'retirer', 'member' => (string)$henriId]);
+check(q('SELECT 1 FROM memberships WHERE organisation_id = ? AND user_id = ?', [$organisationId, $henriId])->fetch() === false, 'Membre retiré par l’administration');
+$post(['action' => 'ecrire', 'subject' => 'Votre licence arrive à échéance', 'body' => "Bonjour,\n\nPensez à renouveler votre formule."]);
+check(str_contains((string)file_get_contents(STORAGE_DIR . '/mails.log'), "À : alice@test.fr\nRépondre à : support@suivi-des-animaux.fr\nObjet : Votre licence arrive à échéance"),
+    'Message envoyé aux responsables');
+[, $body] = http('a', $client);
+check(str_contains($body, 'admin.structure.email') && str_contains($body, 'structure.titulaire') && str_contains($body, 'licence.modification'), 'Fiche client : historique');
+[$code] = http('g', $client, ['csrf' => $token, 'action' => 'etat', 'status' => 'resiliee']);
+check($code === 403 && q('SELECT status FROM licences WHERE organisation_id = ?', [$organisationId])->fetchColumn() === 'active', 'Actions sur les licences réservées à l’administration');
+
+[$code, $csv] = http('a', '/admin/clients?q=Asso&format=csv');
+check($code === 200 && str_starts_with($csv, "\xEF\xBB\xBF") && str_contains($csv, 'Animaux présents') && str_contains($csv, '"Asso Test";Association'), 'Export CSV des clients');
+$token = csrf('a', '/admin/formules');
+http('a', '/admin/formules', ['csrf' => $token, 'action' => 'modifier', 'code' => 'mini', 'name' => 'Mini test', 'monthly' => '4,5', 'yearly' => '45', 'max_animals' => '', 'sort_order' => '9']);
+[, $body] = http('visiteur', '/tarifs');
+check(!str_contains($body, 'Mini test') && q("SELECT max_animals FROM plans WHERE code = 'mini'")->fetchColumn() === null, 'Formule retirée des tarifs, limite illimitée');
+
 echo "OK site : $checks vérifications\n";
