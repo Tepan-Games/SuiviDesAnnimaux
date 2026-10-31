@@ -107,7 +107,7 @@ p { margin: 0 0 1em; }
 .formulaire { background: var(--blanc); border: 1px solid var(--bord); border-radius: var(--rayon); padding: 26px; margin: 32px auto; }
 .formulaire h1 { font-size: 1.7rem; }
 label { display: block; font-weight: 600; font-size: .92rem; margin: 14px 0 5px; color: var(--vert-fonce); }
-input[type=text], input[type=email], input[type=password], input[type=date], input[type=tel], input[type=search], select, textarea {
+input[type=text], input[type=email], input[type=password], input[type=date], input[type=tel], input[type=search], input[type=number], select, textarea {
     width: 100%; padding: 10px 12px; border: 1px solid var(--bord); border-radius: 9px; font: inherit; background: var(--blanc); color: var(--texte);
 }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--vert-doux); border-color: var(--vert); }

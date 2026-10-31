@@ -1,4 +1,4 @@
-<?php /** @var array $organisation @var ?array $licence @var array $alerts @var array $usage @var array $plans @var array $members
+<?php /** @var array $organisation @var ?array $licence @var array $alerts @var ?array $timeline @var array $usage @var array $plans @var array $members
  * @var array $invitations @var array $devices @var array $tickets @var array $log */
 $id = (int)$organisation['id'];
 $action = "/admin/client?id=$id";
@@ -12,8 +12,11 @@ $hidden = fn(string $action) => csrf_field() . '<input type="hidden" name="actio
         </div>
         <?php require __DIR__ . '/_nav.php' ?>
         <?php foreach ($alerts as $key => $label): ?>
-            <div class="message <?= in_array($key, ['fin_depassee', 'depassement'], true) ? 'error' : 'info' ?>"><?= e(match ($key) {
-                'fin_depassee' => "La date de fin de la licence ({$label}) est passée alors qu’elle est encore « " . (LICENCE_STATUSES[$licence['status']] ?? '') . ' » : prolongez-la ou changez son état.',
+            <div class="message <?= in_array($key, ['grace', 'expiree', 'depassement', 'donnees_supprimees'], true) ? 'error' : 'info' ?>"><?= e(match ($key) {
+                'grace' => 'Licence arrivée à échéance le ' . format_date($timeline['end']) . ' : période de grâce jusqu’au ' . format_date($timeline['grace_end']) . '.',
+                'expiree' => 'Licence expirée : les appareils n’envoient plus de données.' . (site_setting('licence.suppression_auto')
+                        ? ' Données supprimées du site le ' . format_date($timeline['deletion']) . ' si elle n’est pas prolongée.' : ''),
+                'donnees_supprimees' => "$label (licence expirée). Prolonger la licence permet aux appareils de les renvoyer.",
                 'depassement' => "Plus d’animaux présents que la formule n’en permet : $label.",
                 'fin_proche' => "La licence se termine bientôt : $label.",
                 default => 'Cette structure n’a pas de licence : enregistrez-en une ci-dessous.',
@@ -59,6 +62,10 @@ $hidden = fn(string $action) => csrf_field() . '<input type="hidden" name="actio
                     <p class="petit">Formule <strong><?= e($licence['plan_name']) ?></strong>, <?= e(mb_strtolower(LICENCE_STATUSES[$licence['status']] ?? '')) ?>,
                         <?= $licence['ends_at'] ? 'jusqu’au ' . e(format_date($licence['ends_at'])) : 'sans date de fin' ?>
                         · <?= e(format_price((int)($licence['billing'] === 'an' ? $licence['yearly_price_cents'] : $licence['monthly_price_cents']))) ?><?= $licence['billing'] === 'an' ? ' par an' : ' par mois' ?></p>
+                    <?php if ($timeline): ?>
+                        <p class="discret petit">Échéances : fin le <?= e(format_date($timeline['end'])) ?> · grâce jusqu’au <?= e(format_date($timeline['grace_end'])) ?>
+                            <?= site_setting('licence.suppression_auto') ? '· données supprimées le ' . e(format_date($timeline['deletion'])) : '' ?> (<a href="/admin/reglages">réglages</a>)</p>
+                    <?php endif ?>
                     <div class="boutons">
                         <form method="post" action="<?= $action ?>"><?= $hidden('prolonger') ?><input type="hidden" name="duree" value="mois"><button class="bouton petit secondaire" type="submit">Prolonger d’un mois</button></form>
                         <form method="post" action="<?= $action ?>"><?= $hidden('prolonger') ?><input type="hidden" name="duree" value="an"><button class="bouton petit secondaire" type="submit">Prolonger d’un an</button></form>

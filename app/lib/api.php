@@ -76,7 +76,8 @@ function api_organisations(int $userId): array
         'name' => $o['name'],
         'kind' => $o['kind'],
         'roles' => array_values(array_filter(explode(',', (string)$o['roles']))),
-        'licence' => $o['licence_status'] ?? null,
+        'licence' => $o['licence_status'] ? licence_effective_status(['status' => $o['licence_status'], 'ends_at' => $o['ends_at'],
+            'billing' => $o['billing'], 'data_deleted_at' => $o['data_deleted_at']]) : null,
         'plan' => $o['plan_code'] ?? null,
     ], user_organisations($userId));
 }

@@ -20,7 +20,7 @@ $id = (int)$organisation['id'];
                 <h3>Licence</h3>
                 <?php if ($licence): ?>
                     <p><strong><?= e($licence['plan_name']) ?></strong>
-                        · <span class="pastille <?= $licence['status'] === 'active' ? '' : 'orange' ?>"><?= e(LICENCE_STATUSES[$licence['status']] ?? $licence['status']) ?></span></p>
+                        · <span class="pastille <?= licence_effective_status($licence) === 'active' ? '' : 'orange' ?>"><?= e(LICENCE_STATUSES[licence_effective_status($licence)] ?? $licence['status']) ?></span></p>
                     <p class="discret petit">
                         <?= (int)$usage['present'] ?> <?= $usage['present'] > 1 ? 'animaux présents' : 'animal présent' ?>
                         <?= $licence['max_animals'] === null ? '· animaux illimités' : 'sur ' . (int)$licence['max_animals'] . ' permis par la formule' ?><br>
@@ -29,8 +29,10 @@ $id = (int)$organisation['id'];
                     <?php if ($licence['max_animals'] !== null && $usage['present'] > (int)$licence['max_animals']): ?>
                         <div class="message error petit">Votre structure suit plus d’animaux que sa formule n’en permet : passez à une formule supérieure.</div>
                     <?php endif ?>
-                    <?php if (in_array($licence['status'], SYNC_READ_ONLY_STATUSES, true)): ?>
-                        <div class="message error petit">Licence <?= e(mb_strtolower(LICENCE_STATUSES[$licence['status']] ?? '')) ?> : vos appareils lisent encore les données mais ne peuvent plus en envoyer.</div>
+                    <?php if ($notice = licence_notice($licence)): ?>
+                        <div class="message <?= $notice[0] ?> petit"><?= e($notice[1]) ?></div>
+                    <?php elseif (licence_is_read_only($licence)): ?>
+                        <div class="message error petit">Licence <?= e(mb_strtolower(LICENCE_STATUSES[licence_effective_status($licence)] ?? '')) ?> : vos appareils lisent encore les données mais ne peuvent plus en envoyer.</div>
                     <?php endif ?>
                 <?php endif ?>
                 <p class="discret petit">Pour changer de formule, <a href="/compte/assistance">écrivez-nous</a> (le paiement en ligne arrive bientôt).</p>

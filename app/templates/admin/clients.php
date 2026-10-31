@@ -1,6 +1,6 @@
 <?php /** @var array $clients @var array $filters @var array $plans */
 $query = http_build_query(array_filter($filters, fn($v) => $v !== ''));
-$alertClass = ['fin_depassee' => 'rouge', 'depassement' => 'rouge', 'fin_proche' => 'orange', 'sans_licence' => 'gris'];
+$alertClass = ['grace' => 'orange', 'expiree' => 'rouge', 'donnees_supprimees' => 'gris', 'depassement' => 'rouge', 'fin_proche' => 'orange', 'sans_licence' => 'gris'];
 ?>
 <section class="page">
     <div class="contenu">

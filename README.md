@@ -56,6 +56,21 @@ connectés, taille des données, demandes d'assistance et historique. *Formules*
 proposée ou retirée de la page Tarifs, création. Le tableau de bord liste les licences à régulariser (fin dépassée,
 dépassement de la formule) et le nombre de licences par formule.
 
+## Échéances des licences
+
+À la date de fin d'une licence : **période de grâce** (annuelle : 30 jours, mensuelle : 7 jours) pendant laquelle tout
+fonctionne, avec alertes et e-mail aux responsables ; puis licence **expirée** : les appareils lisent encore mais
+n'envoient plus, l'interface en ligne montre encore les données ; **30 jours plus tard, les données synchronisées
+sont supprimées du site** (pas des appareils), avec un e-mail à chaque étape. Durées et suppression automatique
+réglables dans *Administration › Réglages* (avec la liste des échéances et un bouton pour passer en revue tout de
+suite). Prolonger ou enregistrer une licence remet ses échéances à zéro.
+
+**Tâche planifiée chez OVH** (obligatoire pour les e-mails et la suppression) : *Hébergements › suivi-des-animaux.fr ›
+Tâches planifiées - Cron › Ajouter une planification* : commande `tools/echeances-licences.php` (chemin depuis la racine
+du site, par ex. `www/../tools/echeances-licences.php` selon le dossier choisi), langage PHP 8.2 ou plus, fréquence
+« Tous les jours », e-mail de rapport : en cas d'erreur. Avant la première mise en ligne de cette version, appliquer
+`database/migrations/2026-10-31-echeances-licences.sql` dans phpMyAdmin.
+
 ## Lettre d'information
 
 *Administration › Lettres d'information* : nouvelle lettre (modèle proposé, `{nom}` et `{site}` remplacés à l'envoi),

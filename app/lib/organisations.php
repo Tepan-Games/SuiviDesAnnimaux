@@ -6,7 +6,7 @@ declare(strict_types=1);
 /** Structures dont la personne est membre, avec ses rôles et la licence. */
 function user_organisations(int $userId): array
 {
-    return q('SELECT o.*, m.roles, l.plan_code, l.status AS licence_status, l.ends_at, p.name AS plan_name,
+    return q('SELECT o.*, m.roles, l.plan_code, l.status AS licence_status, l.ends_at, l.billing, l.data_deleted_at, p.name AS plan_name,
                      (SELECT COUNT(*) FROM memberships m2 WHERE m2.organisation_id = o.id) AS members
               FROM memberships m JOIN organisations o ON o.id = m.organisation_id
               LEFT JOIN licences l ON l.organisation_id = o.id LEFT JOIN plans p ON p.code = l.plan_code
@@ -145,7 +145,8 @@ function save_licence(int $organisationId, string $plan, string $status, string 
 {
     q('INSERT INTO licences (organisation_id, plan_code, status, billing, starts_at, ends_at, notes, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE plan_code = VALUES(plan_code), status = VALUES(status), billing = VALUES(billing),
-           starts_at = VALUES(starts_at), ends_at = VALUES(ends_at), notes = VALUES(notes), updated_at = VALUES(updated_at)',
+           starts_at = VALUES(starts_at), ends_at = VALUES(ends_at), notes = VALUES(notes), updated_at = VALUES(updated_at),
+           grace_notified_at = NULL, expired_notified_at = NULL, data_deleted_at = NULL',
         [$organisationId, $plan, $status, $billing, $startsAt, $endsAt !== '' ? $endsAt : null, $notes, now()]);
     audit('licence.modification', "Structure n°$organisationId : $plan, $status, du $startsAt au " . ($endsAt ?: '—'));
 }
@@ -195,9 +196,10 @@ function organisation_usage(int $organisationId, bool $withStorage = false): arr
 }
 
 /**
- * Alertes d'une licence : [clé => libellé]. Clés : fin_depassee (date de fin passée alors que la licence est active ou
- * en essai), fin_proche (dans les 30 jours), depassement (plus d'animaux présents que la formule n'en permet), sans_licence.
- * $licence : ligne avec status, ends_at et max_animals (null = illimité).
+ * Alertes d'une licence : [clé => libellé]. Clés : fin_proche (fin dans le délai d'alerte), grace (fin passée, période de
+ * grâce), expiree (grâce terminée : lecture seule, données encore gardées), donnees_supprimees, depassement (plus
+ * d'animaux présents que la formule n'en permet), sans_licence. $licence : ligne avec status, billing, ends_at,
+ * data_deleted_at et max_animals (null = illimité).
  */
 function licence_alerts(?array $licence, int $presentAnimals): array
 {
@@ -205,12 +207,16 @@ function licence_alerts(?array $licence, int $presentAnimals): array
         return ['sans_licence' => 'Sans licence'];
     }
     $alerts = [];
-    $running = in_array($licence['status'], ['active', 'essai'], true);
-    $end = $licence['ends_at'] ?? null;
-    if ($running && $end && $end < date('Y-m-d')) {
-        $alerts['fin_depassee'] = 'Fin dépassée';
-    } elseif ($running && $end && $end <= date('Y-m-d', time() + 30 * 86400)) {
-        $alerts['fin_proche'] = 'Fin le ' . format_date($end);
+    $timeline = licence_timeline($licence);
+    $phase = licence_phase($licence);
+    if ($phase === 'supprimee') {
+        $alerts['donnees_supprimees'] = 'Données supprimées le ' . format_date($licence['data_deleted_at']);
+    } elseif ($phase === 'grace') {
+        $alerts['grace'] = 'Grâce jusqu’au ' . format_date($timeline['grace_end']);
+    } elseif ($timeline && ($phase === 'expiree' || (in_array($licence['status'], ['expiree', 'resiliee'], true) && $timeline['end'] < date('Y-m-d')))) {
+        $alerts['expiree'] = site_setting('licence.suppression_auto') ? 'Suppression le ' . format_date($timeline['deletion']) : 'Expirée';
+    } elseif ($phase === 'en_cours' && $timeline && $timeline['end'] <= date('Y-m-d', strtotime('+' . site_setting('licence.alerte_jours') . ' days'))) {
+        $alerts['fin_proche'] = 'Fin le ' . format_date($timeline['end']);
     }
     if (($licence['max_animals'] ?? null) !== null && $presentAnimals > (int)$licence['max_animals']) {
         $alerts['depassement'] = "$presentAnimals animaux pour " . (int)$licence['max_animals'];

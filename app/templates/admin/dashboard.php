@@ -12,11 +12,12 @@
         <div class="grille" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
             <div class="carte">
                 <h3>À régulariser</h3>
-                <?php if (!$alerts): ?><p class="discret">Rien : aucune fin dépassée, aucune structure au-delà de sa formule.</p><?php endif ?>
+                <?php if (!$alerts): ?><p class="discret">Rien : aucune licence en grâce ou expirée, aucune structure au-delà de sa formule.</p><?php endif ?>
                 <?php foreach ($alerts as $client): ?>
                     <p><a href="/admin/client?id=<?= (int)$client['id'] ?>"><?= e($client['name']) ?></a> · <?= e($client['plan_name'] ?? '—') ?>
-                        <?php foreach (array_intersect_key($client['alerts'], ['fin_depassee' => 1, 'depassement' => 1]) as $label): ?><span class="pastille rouge"><?= e($label) ?></span> <?php endforeach ?></p>
+                        <?php foreach (array_intersect_key($client['alerts'], ['grace' => 1, 'expiree' => 1, 'depassement' => 1]) as $label): ?><span class="pastille rouge"><?= e($label) ?></span> <?php endforeach ?></p>
                 <?php endforeach ?>
+                <p class="petit"><a href="/admin/reglages">Échéances et réglages</a></p>
             </div>
             <div class="carte">
                 <h3>Licences par formule</h3>

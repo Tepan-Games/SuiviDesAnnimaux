@@ -11,6 +11,7 @@
                 <div class="carte">
                     <span class="etiquette"><?= e($organisation['kind']) ?></span>
                     <h3><?= e($organisation['name']) ?></h3>
+                    <?php if ($organisation['notice']): ?><div class="message <?= $organisation['notice'][0] ?> petit"><?= e($organisation['notice'][1]) ?></div><?php endif ?>
                     <?php if ($organisation['synced_at'] === null): ?>
                         <p class="discret petit">Aucune donnée reçue pour le moment. Dans le logiciel Windows, ouvrez l’espace de la
                             structure puis <strong>Paramètres › Synchronisation › Se connecter au site</strong>.</p>

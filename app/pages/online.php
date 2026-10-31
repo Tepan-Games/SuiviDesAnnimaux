@@ -14,6 +14,7 @@ function page_online_app(): void
         $organisation['animal_count'] = count($animals);
         $organisation['present_count'] = count(array_filter($animals, fn($a) => ($a['Status'] ?? 'Présent') === 'Présent'));
         $organisation['synced_at'] = $state['synced_at'];
+        $organisation['notice'] = licence_notice(organisation_licence((int)$organisation['id']));
         $organisations[] = $organisation;
     }
     view('online/index', ['organisations' => $organisations], 'Interface en ligne');
@@ -28,6 +29,7 @@ function online_context(array $user): array
     }
     $state = online_state((int)$organisation['id']);
     $animals = online_visible_animals($state, (string)$organisation['roles'], (string)$user['email']);
+    $organisation['notice'] = licence_notice(organisation_licence((int)$organisation['id']));
     return [$organisation, $state, $animals];
 }
 

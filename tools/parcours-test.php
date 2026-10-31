@@ -552,17 +552,17 @@ $token = csrf('a', $client);
 $post = fn(array $fields) => http('a', $client, ['csrf' => $token] + $fields);
 $post(['action' => 'licence', 'plan' => 'mini', 'status' => 'active', 'billing' => 'mois', 'starts_at' => '2026-01-01', 'ends_at' => '2026-02-01', 'notes' => 'Test']);
 [, $body] = http('a', $client);
-check(str_contains($body, 'Plus d’animaux présents que la formule n’en permet : 2 animaux pour 1') && str_contains($body, 'La date de fin de la licence'),
-    'Fiche client : alertes dépassement et fin dépassée');
+check(str_contains($body, 'Plus d’animaux présents que la formule n’en permet : 2 animaux pour 1') && str_contains($body, 'Licence expirée : les appareils n’envoient plus'),
+    'Fiche client : alertes dépassement et licence expirée (fin et grâce passées)');
 check(str_contains($body, '2 / 1') && str_contains($body, 'Appareils connectés') && str_contains($body, 'Données synchronisées'), 'Fiche client : utilisation');
 [, $body] = http('a', '/admin/clients?alerte=depassement');
 check(str_contains($body, 'Asso Test') && str_contains($body, 'Au-delà de la formule'), 'Clients : filtre « au-delà de la formule »');
-[, $body] = http('a', '/admin/clients?alerte=fin_depassee&formule=mini&etat=active&type=Association');
+[, $body] = http('a', '/admin/clients?alerte=expiree&formule=mini&etat=active&type=Association');
 check(str_contains($body, 'Asso Test'), 'Clients : filtres combinés');
 [, $body] = http('a', '/admin/clients?etat=suspendue');
 check(!str_contains($body, 'Asso Test'), 'Clients : filtre de l’état');
 [, $body] = http('a', '/admin');
-check(str_contains($body, 'À régulariser') && str_contains($body, 'Fin dépassée') && str_contains($body, 'Mini test'), 'Tableau de bord : licences à régulariser, par formule');
+check(str_contains($body, 'À régulariser') && str_contains($body, 'Suppression le') && str_contains($body, 'Mini test'), 'Tableau de bord : licences à régulariser, par formule');
 [, $body] = http('a', "/compte/structure?id=$organisationId");
 check(str_contains($body, '2 animaux présents') && str_contains($body, 'plus d’animaux que sa formule'), 'Espace client : utilisation de la formule');
 
@@ -620,5 +620,85 @@ $token = csrf('a', '/admin/formules');
 http('a', '/admin/formules', ['csrf' => $token, 'action' => 'modifier', 'code' => 'mini', 'name' => 'Mini test', 'monthly' => '4,5', 'yearly' => '45', 'max_animals' => '', 'sort_order' => '9']);
 [, $body] = http('visiteur', '/tarifs');
 check(!str_contains($body, 'Mini test') && q("SELECT max_animals FROM plans WHERE code = 'mini'")->fetchColumn() === null, 'Formule retirée des tarifs, limite illimitée');
+
+// ===== Échéances des licences : grâce, expiration, suppression des données, réglages =====
+[$code] = http('g', '/admin/reglages');
+check($code === 403, 'Réglages réservés à l’administration');
+$day = fn(int $offset) => date('Y-m-d', strtotime("$offset days"));
+$mailCount = fn(string $subject) => substr_count((string)file_get_contents(STORAGE_DIR . '/mails.log'), "Objet : $subject");
+$review = function () {
+    $token = csrf('a', '/admin/reglages');
+    return http('a', '/admin/reglages', ['csrf' => $token, 'action' => 'echeances']);
+};
+[, $json] = api('POST', '/api/connexion', ['email' => 'alice@test.fr', 'password' => 'motdepasse-solide', 'device' => 'PC échéances']);
+$syncToken = $json['token'];
+$write = fn(string $name) => api('POST', "/api/sync/fichier?o=$organisationId&chemin=journaux/$name", '{"Format":1,"Changes":[]}', $syncToken)[0];
+
+// Licence mensuelle finie depuis 3 jours : grâce de 7 jours
+$token = csrf('a', $client);
+http('a', $client, ['csrf' => $token, 'action' => 'licence', 'plan' => 'association', 'status' => 'active', 'billing' => 'mois',
+    'starts_at' => $day(-60), 'ends_at' => $day(-3), 'notes' => '']);
+[, $body] = http('a', $client);
+check(str_contains($body, 'période de grâce jusqu’au ' . date('d/m/Y', strtotime('+4 days'))), 'Licence mensuelle : 7 jours de grâce');
+check($write('0000000000000000500_pc.json') === 200, 'Période de grâce : les appareils envoient encore');
+[, $body] = http('a', "/compte/structure?id=$organisationId");
+check(str_contains($body, 'Elle reste active jusqu’au ' . date('d/m/Y', strtotime('+4 days'))), 'Espace client : période de grâce signalée');
+[, $body] = http('f', '/application');
+check(str_contains($body, 'période de grâce'), 'Interface en ligne : période de grâce signalée');
+$review();
+$review();
+check($mailCount('Votre licence est arrivée à échéance : Asso Test') === 1, 'Début de la grâce : un seul e-mail aux responsables');
+
+// Grâce terminée : écriture refusée avant même le passage de la tâche, puis licence expirée
+q('UPDATE licences SET ends_at = ? WHERE organisation_id = ?', [$day(-10), $organisationId]);
+[$code, $json] = api('POST', "/api/sync/fichier?o=$organisationId&chemin=journaux/0000000000000000600_pc.json", '{}', $syncToken);
+check($code === 403 && $json['error'] === 'licence' && str_contains($json['message'], 'expirée'), 'Grâce terminée : envoi refusé');
+[, $json] = api('GET', '/api/structures', null, $syncToken);
+check(array_values(array_filter($json['organisations'], fn($o) => $o['id'] === $organisationId))[0]['licence'] === 'expiree', 'API : licence expirée annoncée');
+$review();
+check(q('SELECT status FROM licences WHERE organisation_id = ?', [$organisationId])->fetchColumn() === 'expiree'
+      && $mailCount('Votre licence a expiré : Asso Test') === 1, 'Fin de la grâce : licence expirée, e-mail envoyé');
+[$code, $body] = http('a', "/application/animaux?o=$organisationId");
+check($code === 200 && str_contains($body, 'Minou') && str_contains($body, 'seront supprimées du site le ' . date('d/m/Y', strtotime('+27 days'))),
+    'Licence expirée : données encore consultables, date de suppression annoncée');
+
+// 30 jours après la grâce : données supprimées (tâche planifiée en ligne de commande)
+q('UPDATE licences SET ends_at = ? WHERE organisation_id = ?', [$day(-40), $organisationId]);
+exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(__DIR__ . '/echeances-licences.php'), $output, $exitCode);
+check($exitCode === 0 && str_contains(implode("\n", $output), '1 suppression(s)'), 'Tâche planifiée : suppression des données');
+clearstatcache();
+check(!is_dir(STORAGE_DIR . "/sync/$organisationId") && !is_file(STORAGE_DIR . "/cache/etat-$organisationId.json")
+      && q('SELECT data_deleted_at FROM licences WHERE organisation_id = ?', [$organisationId])->fetchColumn() !== null
+      && $mailCount('Données supprimées : Asso Test') === 1, 'Données synchronisées supprimées, e-mail envoyé');
+[, $body] = http('a', '/application');
+check(str_contains($body, 'ont été supprimées du site'), 'Interface en ligne : suppression signalée');
+[, $body] = http('a', '/admin/clients?alerte=donnees_supprimees');
+check(str_contains($body, 'Asso Test'), 'Clients : filtre « données supprimées »');
+
+// Licence annuelle : 30 jours de grâce ; réglages modifiables
+$token = csrf('a', $client);
+http('a', $client, ['csrf' => $token, 'action' => 'licence', 'plan' => 'association', 'status' => 'active', 'billing' => 'an',
+    'starts_at' => $day(-400), 'ends_at' => $day(-20), 'notes' => '']);
+check(q('SELECT data_deleted_at FROM licences WHERE organisation_id = ?', [$organisationId])->fetchColumn() === null, 'Licence enregistrée : échéances remises à zéro');
+[, $body] = http('a', $client);
+check(str_contains($body, 'période de grâce jusqu’au ' . date('d/m/Y', strtotime('+10 days'))), 'Licence annuelle : 30 jours de grâce');
+$settings = ['licence.grace_jours_an' => '10', 'licence.grace_jours_mois' => '7', 'licence.donnees_jours' => '60', 'licence.alerte_jours' => '30'];
+$token = csrf('a', '/admin/reglages');
+http('a', '/admin/reglages', ['csrf' => $token, 'action' => 'reglages', 'licence.suppression_auto' => '1'] + $settings);
+[, $body] = http('a', $client);
+check(str_contains($body, 'Licence expirée') && str_contains($body, 'Données supprimées du site le ' . date('d/m/Y', strtotime('+50 days'))), 'Réglages : grâce et conservation modifiées');
+http('a', '/admin/reglages', ['csrf' => $token, 'action' => 'reglages'] + $settings);
+[, $body] = http('a', $client);
+check(str_contains($body, 'Licence expirée') && !str_contains($body, 'Données supprimées du site le'), 'Réglages : suppression automatique désactivée');
+[, $body] = http('a', '/admin/reglages', ['csrf' => $token, 'action' => 'reglages', 'licence.grace_jours_an' => '-1'] + $settings);
+check(q("SELECT value FROM site_settings WHERE name = 'licence.grace_jours_an'")->fetchColumn() === '10', 'Réglages : valeur hors limites refusée');
+[, $body] = http('a', '/admin/reglages');
+check(str_contains($body, 'Licences avec une date de fin') && str_contains($body, 'Asso Test') && str_contains($body, 'désactivée'), 'Réglages : liste des échéances');
+http('a', '/admin/reglages', ['csrf' => $token, 'action' => 'reglages', 'licence.grace_jours_an' => '30', 'licence.grace_jours_mois' => '7',
+    'licence.donnees_jours' => '30', 'licence.alerte_jours' => '30', 'licence.suppression_auto' => '1']);
+$token = csrf('a', $client);
+http('a', $client, ['csrf' => $token, 'action' => 'prolonger', 'duree' => 'an']);
+check(q('SELECT status FROM licences WHERE organisation_id = ?', [$organisationId])->fetchColumn() === 'active', 'Licence prolongée après expiration');
+api('POST', '/api/deconnexion', null, $syncToken);
 
 echo "OK site : $checks vérifications\n";

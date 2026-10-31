@@ -30,6 +30,10 @@ assistance, administration. Logiciel Windows : dépôt `C:\Users\arcuc\Projects\
   `organisation_usage()` lue dans les données synchronisées), actions de la fiche client par `action`, formules
   `/admin/formules` (jamais supprimées). Toute action sur une structure est notée dans `audit_log` avec un détail
   commençant par « Structure n°<id> » (historique de la fiche).
+- Échéances des licences (`app/lib/licences.php`) : `licence_timeline()` (fin, fin de grâce, suppression),
+  `licence_phase()`, `licence_is_read_only()` (utilisé par l'API), `process_licence_deadlines()` lancé chaque jour par
+  `tools/echeances-licences.php` (cron OVH) ou depuis `/admin/reglages` ; réglages dans la table `site_settings`
+  (`site_setting()`, `LICENCE_SETTINGS` ; les points des noms deviennent « _ » dans les formulaires).
 - Rôles (`ROLES`) identiques au logiciel (`SpaceRoles` : responsable, soins, accueil, tresorier, consultation).
 
 ## Règles

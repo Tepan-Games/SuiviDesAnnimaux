@@ -21,15 +21,15 @@ function page_admin_dashboard(): void
                          ORDER BY l.ends_at", [date('Y-m-d', time() + 30 * 86400)])->fetchAll(),
         'tickets' => q("SELECT t.*, u.name AS user_name FROM tickets t JOIN users u ON u.id = t.user_id
                         WHERE t.status IN ('ouvert', 'en_cours') ORDER BY FIELD(t.priority, 'urgente', 'haute', 'normale', 'basse'), t.updated_at LIMIT 10")->fetchAll(),
-        'alerts' => array_filter(admin_clients([]), fn($c) => isset($c['alerts']['fin_depassee']) || isset($c['alerts']['depassement'])),
+        'alerts' => array_filter(admin_clients([]), fn($c) => array_intersect_key($c['alerts'], ['grace' => 1, 'expiree' => 1, 'depassement' => 1]) !== []),
         'byPlan' => q("SELECT p.name, COUNT(l.id) AS total, SUM(l.status = 'active') AS active, SUM(l.status = 'essai') AS essai
                        FROM plans p LEFT JOIN licences l ON l.plan_code = p.code GROUP BY p.code, p.name, p.sort_order ORDER BY p.sort_order")->fetchAll(),
     ], 'Administration');
 }
 
 /** Filtres de la liste des clients : alertes. */
-const CLIENT_ALERT_FILTERS = ['fin_depassee' => 'Fin dépassée', 'fin_proche' => 'Fin dans les 30 jours', 'depassement' => 'Au-delà de la formule',
-    'sans_licence' => 'Sans licence'];
+const CLIENT_ALERT_FILTERS = ['fin_proche' => 'Fin proche', 'grace' => 'En période de grâce', 'expiree' => 'Expirée (données gardées)',
+    'donnees_supprimees' => 'Données supprimées', 'depassement' => 'Au-delà de la formule', 'sans_licence' => 'Sans licence'];
 
 /** Structures avec licence, responsable, membres, utilisation et alertes (filtres : q, etat, formule, type, alerte). */
 function admin_clients(array $filters): array
@@ -46,7 +46,7 @@ function admin_clients(array $filters): array
             $params[] = $filters[$key];
         }
     }
-    $clients = q('SELECT o.*, u.name AS owner_name, u.email AS owner_email, l.plan_code, l.status, l.status AS licence_status, l.billing,
+    $clients = q('SELECT o.*, u.name AS owner_name, u.email AS owner_email, l.plan_code, l.status, l.status AS licence_status, l.billing, l.data_deleted_at,
                          l.starts_at, l.ends_at, p.name AS plan_name, p.max_animals, p.monthly_price_cents, p.yearly_price_cents,
                          (SELECT COUNT(*) FROM memberships m WHERE m.organisation_id = o.id) AS members
                   FROM organisations o JOIN users u ON u.id = o.owner_user_id
@@ -204,6 +204,7 @@ function page_admin_client(): void
         'organisation' => $organisation,
         'licence' => $licence,
         'alerts' => licence_alerts($licence, $usage['present']),
+        'timeline' => licence_timeline($licence),
         'usage' => $usage,
         'plans' => plans_all(),
         'members' => organisation_members($id),
@@ -322,4 +323,37 @@ function page_admin_log(): void
     require_admin();
     view('admin/log', ['entries' => q('SELECT a.*, u.email FROM audit_log a LEFT JOIN users u ON u.id = a.user_id ORDER BY a.created_at DESC LIMIT 300')->fetchAll()],
         'Journal');
+}
+
+/** Réglages des échéances des licences, et passage en revue immédiat (comme la tâche planifiée quotidienne). */
+function page_admin_settings(): void
+{
+    require_admin();
+    if (is_post()) {
+        csrf_check();
+        if (input('action') === 'echeances') {
+            $report = process_licence_deadlines();
+            audit('admin.echeances', "{$report['grace']} en grâce, {$report['expirees']} expirée(s), {$report['supprimees']} suppression(s)");
+            flash("Échéances passées en revue : {$report['grace']} licence(s) entrée(s) en période de grâce, {$report['expirees']} expirée(s), "
+                . "{$report['supprimees']} suppression(s) de données.");
+        } else {
+            $changes = [];
+            foreach (LICENCE_SETTINGS as $key => [$label, $default, $min, $max]) {
+                $field = str_replace('.', '_', $key); // PHP remplace les points des noms de champs envoyés
+                $value = $max === 1 ? (empty($_POST[$field]) ? 0 : 1) : (int)input($field, (string)$default);
+                if ($value < $min || $value > $max) {
+                    flash("$label : entre $min et $max.", 'error');
+                    redirect('/admin/reglages');
+                }
+                save_site_setting($key, $value);
+                $changes[] = "$key=$value";
+            }
+            audit('admin.reglages', implode(', ', $changes));
+            flash('Réglages enregistrés.');
+        }
+        redirect('/admin/reglages');
+    }
+    $licences = q("SELECT l.*, o.name AS organisation_name FROM licences l JOIN organisations o ON o.id = l.organisation_id
+                   WHERE l.ends_at IS NOT NULL AND l.data_deleted_at IS NULL ORDER BY l.ends_at")->fetchAll();
+    view('admin/settings', ['licences' => $licences], 'Réglages');
 }

@@ -50,6 +50,7 @@ $routes = [
     '/admin/clients' => 'page_admin_clients',
     '/admin/client' => 'page_admin_client',
     '/admin/formules' => 'page_admin_plans',
+    '/admin/reglages' => 'page_admin_settings',
     '/admin/utilisateurs' => 'page_admin_users',
     '/admin/assistance' => 'page_admin_support',
     '/admin/ticket' => 'page_admin_ticket',
