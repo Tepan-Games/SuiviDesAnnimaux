@@ -1,6 +1,6 @@
 <?php
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
-$items = ['/admin' => 'Tableau de bord', '/admin/clients' => 'Clients et licences', '/admin/utilisateurs' => 'Comptes', '/admin/assistance' => 'Suivi des demandes', '/admin/journal' => 'Journal'];
+$items = ['/admin' => 'Tableau de bord', '/admin/clients' => 'Clients et licences', '/admin/utilisateurs' => 'Comptes', '/admin/assistance' => 'Suivi des demandes', '/admin/lettres' => 'Lettres d’information', '/admin/journal' => 'Journal'];
 ?>
 <nav class="sous-navigation" aria-label="Administration">
     <?php foreach ($items as $href => $label): ?>

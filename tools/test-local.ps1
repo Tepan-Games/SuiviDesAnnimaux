@@ -29,8 +29,9 @@ $schema = ("$root\database\schema.sql").Replace([char]92, [char]47)
 return [
     'base_url' => 'http://localhost:8080',
     'db' => ['dsn' => 'mysql:host=127.0.0.1;port=3399;dbname=suivi_test;charset=utf8mb4', 'user' => 'root', 'password' => ''],
-    'mail' => ['mode' => 'log', 'from' => 'contact@suivi-des-animaux.fr', 'from_name' => 'Suivi des animaux'],
-    'support_email' => 'contact@suivi-des-animaux.fr',
+    'mail' => ['mode' => 'log', 'from' => 'noreply@suivi-des-animaux.fr', 'from_name' => 'Suivi des animaux'],
+    'support_email' => 'support@suivi-des-animaux.fr',
+    'newsletter' => ['from' => 'newsletter@suivi-des-animaux.fr', 'batch' => 2],
     'download_pc' => 'https://github.com/Tepan-Games/SuiviAnimaux-versions/releases/latest',
     'download_android' => 'https://play.google.com/store/apps/details?id=com.tepangames.suivianimaux',
     'sync' => ['max_bytes' => 1024 * 1024],

@@ -12,14 +12,23 @@ return [
     ],
 
     // E-mails : « mail » (fonction mail() d'OVH) en ligne, « log » en local (écrits dans storage/mails.log).
+    // Expéditeur des e-mails automatiques (confirmation, mot de passe, invitations, réponses aux demandes).
     'mail' => [
         'mode' => 'mail',
-        'from' => 'contact@suivi-des-animaux.fr',
+        'from' => 'noreply@suivi-des-animaux.fr',
         'from_name' => 'Suivi des animaux',
     ],
 
-    // Adresse qui reçoit les nouvelles demandes d'assistance.
-    'support_email' => 'contact@suivi-des-animaux.fr',
+    // Adresse qui reçoit les demandes d'assistance et les messages du formulaire de contact ; « Répondre » à un
+    // e-mail du site écrit aussi à cette adresse.
+    'support_email' => 'support@suivi-des-animaux.fr',
+
+    // Lettre d'information : expéditeur et nombre d'e-mails par lot (limite d'envoi de l'hébergement).
+    'newsletter' => [
+        'from' => 'newsletter@suivi-des-animaux.fr',
+        'from_name' => 'Suivi des animaux',
+        'batch' => 50,
+    ],
 
     // Liens de téléchargement des applications.
     'download_pc' => 'https://github.com/Tepan-Games/SuiviAnimaux-versions/releases/latest',
