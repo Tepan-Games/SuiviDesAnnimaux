@@ -413,4 +413,123 @@ http('d', '/nouveau-mot-de-passe', ['csrf' => $token, 't' => substr($reset, strp
 [$code] = api('GET', '/api/structures', null, $bobToken);
 check($code === 401, 'Mot de passe réinitialisé : appareils déconnectés');
 
+// ===== Interface en ligne : fiches des animaux reconstituées à partir des fichiers de synchronisation =====
+[, $json] = api('POST', '/api/connexion', ['email' => 'alice@test.fr', 'password' => 'motdepasse-solide', 'device' => 'PC de l’association']);
+$syncToken = $json['token'];
+$photo = "\xFF\xD8\xFF\xE0" . random_bytes(500);
+$photoName = hash('sha256', $photo) . '.jpg';
+$hidden = random_bytes(100);
+$hiddenName = hash('sha256', $hidden) . '.png';
+$change = fn(string $table, string $id, string $modified, ?array $data) =>
+    ['Table' => $table, 'Id' => $id, 'Deleted' => $data === null, 'Modified' => $modified, 'Data' => $data];
+$journal = fn(array $changes, ?array $cursors = null, int $format = 1) => json_encode(['Format' => $format, 'Device' => 'x',
+    'DeviceName' => 'Test', 'CreatedUtc' => '2026-10-31T10:00:00Z', 'Changes' => $changes, 'Cursors' => $cursors]);
+$minou = ['Name' => 'Minou', 'Species' => 'Chat', 'Sex' => 'Femelle', 'Breed' => 'Européen', 'BirthDate' => '2023-04-01', 'Status' => 'Présent',
+    'ChipNumber' => '250269812345678', 'Allergies' => 'Poulet', 'VeterinarianContactId' => 'c-vet', 'PhotoPath' => "fichier:$photoName",
+    'Sterilized' => 1, 'MotherId' => null, 'Notes' => "Timide <b>au début</b>"];
+$snapshot = $journal([
+    $change('Contacts', 'c-fanny', '2026-10-01T08:00:00.000Z', ['Name' => 'Fanny Accueil', 'Email' => ' Fanny@Test.fr ', 'Role' => 'Famille d’accueil']),
+    $change('Contacts', 'c-vet', '2026-10-01T08:00:00.000Z', ['Name' => 'Clinique des Lilas', 'Email' => '', 'Role' => 'Vétérinaire']),
+    $change('Animals', 'a-minou', '2026-10-10T08:00:00.000Z', $minou),
+    $change('Animals', 'a-rex', '2026-10-10T08:00:00.000Z', ['Name' => 'Rex', 'Species' => 'Chien', 'Sex' => 'Mâle', 'Status' => 'Présent', 'PhotoPath' => '']),
+    $change('Animals', 'a-ancien', '2026-10-10T08:00:00.000Z', ['Name' => 'Ancien', 'Species' => 'Chat', 'Sex' => 'Mâle', 'Status' => 'Adopté']),
+    $change('Animals', 'a-parti', '2026-10-10T08:00:00.000Z', ['Name' => 'Supprimé', 'Species' => 'Chat', 'Sex' => 'Mâle', 'Status' => 'Présent']),
+    $change('Placements', 'p-1', '2026-10-10T08:00:00.000Z', ['AnimalId' => 'a-minou', 'Kind' => 'Famille d’accueil', 'ContactId' => 'c-fanny',
+        'StartDate' => '2026-10-01', 'EndDate' => null, 'Location' => '', 'Notes' => '']),
+    $change('Placements', 'p-2', '2026-10-10T08:00:00.000Z', ['AnimalId' => 'a-rex', 'Kind' => 'Famille d’accueil', 'ContactId' => 'c-fanny',
+        'StartDate' => '2026-01-01', 'EndDate' => '2026-02-01', 'Location' => '', 'Notes' => '']),
+    $change('AnimalEvents', 'e-1', '2026-10-12T08:00:00.000Z', ['AnimalId' => 'a-minou', 'EventDate' => '2026-10-12', 'Type' => 'Pesée',
+        'Title' => '', 'Description' => '', 'WeightKg' => 4.25, 'NextDueDate' => null, 'Veterinarian' => '', 'AttachmentPath' => '']),
+    $change('AnimalEvents', 'e-2', '2026-10-13T08:00:00.000Z', ['AnimalId' => 'a-minou', 'EventDate' => '2026-10-13', 'Type' => 'Vaccin',
+        'Title' => '<script>alert(1)</script>', 'Description' => 'Typhus et coryza', 'WeightKg' => null, 'NextDueDate' => '2027-10-13',
+        'Veterinarian' => 'Dr Martin', 'AttachmentPath' => '']),
+    $change('Treatments', 't-1', '2026-10-14T08:00:00.000Z', ['AnimalId' => 'a-minou', 'MedicationName' => 'Métacam', 'Dosage' => '0,5 ml',
+        'Route' => 'Orale', 'StartDate' => '2026-10-14', 'EndDate' => null, 'FrequencyValue' => 1, 'FrequencyUnit' => 'jour(s)', 'Status' => 'En cours']),
+    $change('AnimalExpenses', 'x-1', '2026-10-15T08:00:00.000Z', ['AnimalId' => 'a-minou', 'ExpenseDate' => '2026-10-15', 'Category' => 'Vétérinaire',
+        'Description' => 'Stérilisation', 'Amount' => 120.5, 'ReimbursedAmount' => 0, 'PaidBy' => 'Association']),
+], ['pcasso' => '0000000000000000090_pcasso.json', 'tel' => '0000000000000000095_tel.json']);
+foreach ([
+    "instantanes/0000000000000000100_pcasso.json.gz" => gzencode($snapshot),
+    // Déjà compris dans l'état complet (curseur) : ignoré
+    "journaux/0000000000000000090_pcasso.json" => $journal([$change('Animals', 'a-rex', '2026-10-20T08:00:00.000Z', ['Name' => 'Ignoré', 'Species' => 'Chien', 'Sex' => 'Mâle', 'Status' => 'Présent'])]),
+    // Après l'état complet : modification plus récente, modification plus ancienne (ignorée), suppression
+    "journaux/0000000000000000200_tel.json" => $journal([
+        $change('Animals', 'a-rex', '2026-10-21T08:00:00.000Z', ['Name' => 'Rex le brave', 'Species' => 'Chien', 'Sex' => 'Mâle', 'Status' => 'Présent']),
+        $change('Animals', 'a-minou', '2026-10-01T08:00:00.000Z', ['Name' => 'Vieux nom'] + $minou),
+        $change('Animals', 'a-parti', '2026-10-21T08:00:00.000Z', null),
+    ]),
+    "journaux/illisible_tel.json" => 'pas du JSON',
+    "fichiers/$photoName" => $photo,
+    "fichiers/$hiddenName" => $hidden,
+] as $path => $content) {
+    [$code] = api('POST', "/api/sync/fichier?o=$organisationId&chemin=$path", $content, $syncToken);
+    check($code === 200, "Interface en ligne : envoi de $path");
+}
+
+[$code, , $location] = http('visiteur', "/application/animaux?o=$organisationId");
+check($code === 302 && str_contains($location, '/connexion'), 'Interface en ligne : connexion exigée');
+[$code, $body] = http('a', '/application');
+check($code === 200 && str_contains($body, 'Asso Test') && str_contains($body, "/application/animaux?o=$organisationId")
+      && str_contains($body, '2 animaux présents'), 'Interface en ligne : structures du compte');
+[$code, $body] = http('a', "/application/animaux?o=$organisationId");
+check($code === 200 && str_contains($body, 'Minou') && str_contains($body, 'Rex le brave'), 'Interface en ligne : liste des animaux présents');
+check(!str_contains($body, 'Ignoré') && !str_contains($body, 'Vieux nom'), 'Interface en ligne : journal déjà compris et modification plus ancienne ignorés');
+check(!str_contains($body, 'Supprimé') && !str_contains($body, 'Ancien'), 'Interface en ligne : animal supprimé absent, adopté filtré');
+check(str_contains($body, 'Famille d’accueil : Fanny Accueil') && str_contains($body, e(online_file_url($organisationId, $photoName))), 'Interface en ligne : placement et photo dans la liste');
+[, $body] = http('a', "/application/animaux?o=$organisationId&statut=Tous&q=ANC");
+check(str_contains($body, 'Ancien') && !str_contains($body, 'Minou'), 'Interface en ligne : recherche et filtre du statut');
+check(is_file(STORAGE_DIR . "/cache/etat-$organisationId.json"), 'Interface en ligne : état gardé en cache');
+
+[$code, $body] = http('a', "/application/animal?o=$organisationId&a=a-minou");
+check($code === 200 && str_contains($body, 'Poulet') && str_contains($body, 'Clinique des Lilas') && str_contains($body, '250269812345678'), 'Fiche en ligne : identité et santé');
+check(str_contains($body, 'Métacam') && str_contains($body, '4,25 kg') && str_contains($body, 'Typhus et coryza') && str_contains($body, '13/10/2027'), 'Fiche en ligne : traitements, pesée, journal');
+check(str_contains($body, '&lt;script&gt;alert(1)&lt;/script&gt;') && !str_contains($body, '<script>alert(1)') && str_contains($body, 'Timide &lt;b&gt;'), 'Fiche en ligne : textes échappés');
+check(str_contains($body, 'Stérilisation') && str_contains($body, '120,50 €'), 'Fiche en ligne : dépenses visibles du responsable');
+[$code] = http('a', "/application/animal?o=$organisationId&a=a-parti");
+check($code === 404, 'Fiche en ligne : animal supprimé introuvable');
+
+$curl = curl_init(BASE . online_file_url($organisationId, $photoName));
+curl_setopt_array($curl, [CURLOPT_RETURNTRANSFER => true, CURLOPT_COOKIEFILE => STORAGE_DIR . '/cookies-a.txt']);
+$raw = curl_exec($curl);
+check(curl_getinfo($curl, CURLINFO_RESPONSE_CODE) === 200 && $raw === $photo && curl_getinfo($curl, CURLINFO_CONTENT_TYPE) === 'image/jpeg', 'Interface en ligne : photo servie');
+curl_close($curl);
+foreach ([$hiddenName, '../../app/config.php', 'deplace.txt', str_repeat('0', 64) . '.jpg'] as $name) {
+    [$code] = http('a', online_file_url($organisationId, $name));
+    check($code === 404, "Interface en ligne : fichier « $name » refusé");
+}
+
+// Autres rôles : famille d'accueil (ses animaux seulement), bénévole soins (sans les dépenses), non-membre
+create_user('Fanny Accueil', 'fanny@test.fr', 'motdepasse-fanny');
+create_user('Gaël Soins', 'gael@test.fr', 'motdepasse-gael');
+create_user('Henri Dehors', 'henri@test.fr', 'motdepasse-henri');
+foreach (['fanny@test.fr' => 'accueil', 'gael@test.fr' => 'soins'] as $email => $roles) {
+    q('INSERT INTO memberships (organisation_id, user_id, roles, created_at) SELECT ?, id, ?, ? FROM users WHERE email = ?', [$organisationId, $roles, now(), $email]);
+}
+foreach (['f' => 'fanny', 'g' => 'gael', 'h' => 'henri'] as $browser => $name) {
+    $token = csrf($browser, '/connexion');
+    http($browser, '/connexion', ['csrf' => $token, 'email' => "$name@test.fr", 'password' => "motdepasse-$name"]);
+}
+[$code, $body] = http('f', "/application/animaux?o=$organisationId&statut=Tous");
+check($code === 200 && str_contains($body, 'Minou') && !str_contains($body, 'Rex') && !str_contains($body, 'Ancien')
+      && str_contains($body, 'seuls les animaux qui vous sont confiés'), 'Famille d’accueil : seulement l’animal confié (placement en cours)');
+[$code] = http('f', "/application/animal?o=$organisationId&a=a-rex");
+check($code === 404, 'Famille d’accueil : fiche d’un autre animal refusée');
+[$code, $body] = http('f', "/application/animal?o=$organisationId&a=a-minou");
+check($code === 200 && str_contains($body, 'Métacam') && !str_contains($body, 'Stérilisation'), 'Famille d’accueil : fiche sans les dépenses');
+[$code, $body] = http('g', "/application/animal?o=$organisationId&a=a-minou");
+check($code === 200 && str_contains($body, 'Métacam') && !str_contains($body, 'Stérilisation'), 'Bénévole soins : fiche sans les dépenses');
+[$code] = http('h', "/application/animaux?o=$organisationId");
+[$code2] = http('h', online_file_url($organisationId, $photoName));
+check($code === 404 && $code2 === 404, 'Interface en ligne : refusée à un non-membre');
+
+// Nouveau journal : l'état est recalculé ; fichier d'une version plus récente signalé
+api('POST', "/api/sync/fichier?o=$organisationId&chemin=journaux/0000000000000000300_pcasso.json",
+    $journal([$change('Animals', 'a-rex', '2026-10-22T08:00:00.000Z', ['Name' => 'Rex III', 'Species' => 'Chien', 'Sex' => 'Mâle', 'Status' => 'Présent'])]), $syncToken);
+[, $body] = http('a', "/application/animaux?o=$organisationId");
+check(str_contains($body, 'Rex III') && !str_contains($body, 'Rex le brave'), 'Interface en ligne : nouveau journal pris en compte');
+api('POST', "/api/sync/fichier?o=$organisationId&chemin=journaux/0000000000000000400_futur.json", $journal([], null, 99), $syncToken);
+[, $body] = http('a', "/application/animaux?o=$organisationId");
+check(str_contains($body, 'version plus récente') && str_contains($body, 'Rex III'), 'Interface en ligne : données d’une version plus récente signalées');
+api('POST', '/api/deconnexion', null, $syncToken);
+
 echo "OK site : $checks vérifications\n";

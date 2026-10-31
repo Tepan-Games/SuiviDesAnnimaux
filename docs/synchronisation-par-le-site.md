@@ -56,3 +56,17 @@ Plan d'origine :
   `site-en-attente` (jeton chiffré) puis redémarrage sur l'espace, comme `invitation-en-attente.txt`.
 - Smoke test : `SiteStore` contre un faux serveur local, ou le serveur PHP de test du site.
 - Ensuite : Android (scan du QR code), invitations par le site au lieu de OneDrive pour les structures.
+
+## Interface en ligne (consultation, 31/10/2026)
+
+Le site lit les fichiers de synchronisation de chaque structure (`app/lib/online.php`) :
+- dernier `instantanes/*.json.gz` (format 1), puis les `journaux/*.json` dont le nom dépasse le curseur de leur appareil
+  dans l'instantané ; ajouts et modifications d'abord, suppressions ensuite ; sur un même `Id`, la date `Modified` la
+  plus grande gagne (comparaison de chaînes, comme le logiciel) ; fichier illisible ignoré ; `Format` > 1 signalé ;
+- résultat gardé dans `storage/cache/etat-<id>.json`, recalculé quand la liste des fichiers change ;
+- photos et documents (`fichier:<sha256>.<ext>`) servis par `/application/fichier` seulement s'ils sont cités par un
+  animal que la personne peut voir.
+
+Suite prévue : saisie en ligne (pesée, soin, note, photo) écrite par le site comme un appareil
+(`journaux/<ticks>_site-<id compte>.json`, au format du logiciel) pour que le logiciel et l'application la reçoivent
+à leur prochaine synchronisation.

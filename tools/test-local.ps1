@@ -40,6 +40,7 @@ return [
 "@ | ForEach-Object { [IO.File]::WriteAllText("$out\config.test.php", $_, (New-Object Text.UTF8Encoding $false)) }
 $env:SUIVI_SITE_CONFIG = "$out\config.test.php"
 Remove-Item "$root\storage\mails.log" -ErrorAction SilentlyContinue
+Remove-Item "$root\storage\sync", "$root\storage\cache" -Recurse -Force -ErrorAction SilentlyContinue
 
 $server = Start-Process -FilePath $php -ArgumentList "-S", "localhost:8080", "-t", "`"$root\www`"", "`"$root\www\index.php`"" -PassThru -WindowStyle Hidden
 Start-Sleep -Seconds 2

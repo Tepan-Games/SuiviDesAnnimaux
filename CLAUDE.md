@@ -13,6 +13,11 @@ assistance, administration. Logiciel Windows : dépôt `C:\Users\arcuc\Projects\
 - `app/lib/` : helpers (db, q, e, url, csrf, flash, audit, view), auth, organisations (membres, invitations, licences),
   tickets, mail (mode `log` en local : `storage/mails.log`), devices (appareils connectés, codes `XXXX-XXXX`), api (JSON,
   jeton `Authorization: Bearer`, stockage de synchronisation `storage/sync/<id structure>/`).
+- Interface en ligne (`/application/…`, `app/pages/online.php`, `app/lib/online.php`, écrans `app/templates/online/`) :
+  état d'une structure reconstitué depuis `storage/sync/<id>/` comme `SyncEngine` du logiciel (instantané + journaux
+  après les curseurs, modification la plus récente gagnante), cache `storage/cache/etat-<id>.json` ; droits comme
+  `SpaceAccess` (famille d'accueil seule : animaux confiés ; dépenses : responsable, trésorier, consultation) ; fichiers
+  servis seulement s'ils sont cités par un animal visible. Lecture seule ; prochaine étape : saisie écrite en journal.
 - `app/pages/` : fonctions `page_*` appelées par `www/index.php` (`api.php` : adresses `/api/…`, sans session ni
   cookie) ; `app/templates/` : écrans.
 - `database/schema.sql` : schéma complet (un changement s'applique à la main dans phpMyAdmin chez OVH) ; chaque

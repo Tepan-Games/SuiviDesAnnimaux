@@ -175,9 +175,3 @@ function page_profile(): void
     view('account/profile', ['user' => $user, 'errors' => $errors], 'Mon profil');
 }
 
-/** Interface en ligne du logiciel (en préparation : elle s'appuiera sur le service de synchronisation). */
-function page_online_app(): void
-{
-    $user = require_login();
-    view('account/online_app', ['organisations' => user_organisations((int)$user['id'])], 'Interface en ligne');
-}

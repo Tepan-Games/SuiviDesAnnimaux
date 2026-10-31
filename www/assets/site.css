@@ -107,7 +107,7 @@ p { margin: 0 0 1em; }
 .formulaire { background: var(--blanc); border: 1px solid var(--bord); border-radius: var(--rayon); padding: 26px; margin: 32px auto; }
 .formulaire h1 { font-size: 1.7rem; }
 label { display: block; font-weight: 600; font-size: .92rem; margin: 14px 0 5px; color: var(--vert-fonce); }
-input[type=text], input[type=email], input[type=password], input[type=date], input[type=tel], select, textarea {
+input[type=text], input[type=email], input[type=password], input[type=date], input[type=tel], input[type=search], select, textarea {
     width: 100%; padding: 10px 12px; border: 1px solid var(--bord); border-radius: 9px; font: inherit; background: var(--blanc); color: var(--texte);
 }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--vert-doux); border-color: var(--vert); }
@@ -171,3 +171,24 @@ summary { cursor: pointer; color: var(--vert); font-weight: 600; }
 .code-appareil { font-family: Consolas, monospace; font-size: 2rem; font-weight: 700; letter-spacing: .12em; margin: 12px 0; }
 .qr-code { width: 220px; max-width: 100%; background: #fff; }
 .qr-code svg { display: block; width: 100%; height: auto; }
+
+/* Interface en ligne */
+.filtres { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 0 0 12px; }
+.filtres input[type=search] { flex: 1 1 220px; margin: 0; }
+.filtres select { width: auto; margin: 0; }
+.liste-animaux { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.carte.animal { display: flex; gap: 14px; align-items: center; padding: 14px; text-decoration: none; color: var(--texte); }
+.carte.animal:hover { border-color: var(--vert); }
+.vignette { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex: none; background: var(--vert-doux); }
+.vignette.vide { display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.4rem; color: var(--vert-fonce); }
+.fiche-entete { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+.fiche-entete img { width: 140px; height: 140px; border-radius: var(--rayon); object-fit: cover; }
+.fiche-entete p { margin: 0 0 8px; }
+.grille.fiche { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.champs { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0 0 12px; }
+.champs dt { color: var(--gris); }
+.champs dd { margin: 0; }
+.section-fiche { margin-top: 32px; }
+.galerie { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.galerie figure { margin: 0; }
+.galerie img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; display: block; }

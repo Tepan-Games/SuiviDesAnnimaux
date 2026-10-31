@@ -61,7 +61,7 @@ powershell -ExecutionPolicy Bypass -File tools/test-local.ps1
 
 Démarre une base MySQL de test dans `test-output/`, importe le schéma, lance le serveur PHP sur
 http://localhost:8080 et passe le parcours complet (inscription, confirmation, structure, invitation, assistance,
-administration, lettre d'information, appareils et API de synchronisation). Les e-mails sont écrits dans `storage/mails.log`.
+administration, lettre d'information, appareils, API de synchronisation et interface en ligne). Les e-mails sont écrits dans `storage/mails.log`.
 Sous Linux avec MariaDB : `bash tools/test-local.sh`.
 
 ## Synchronisation des structures
@@ -71,8 +71,17 @@ dans *Mon compte › Appareils*, avec QR code) puis lisent et écrivent les fich
 structure par l'API `/api/…` (voir `docs/synchronisation-par-le-site.md`). Les fichiers sont dans
 `storage/sync/<id structure>/`, jamais servis par le web.
 
+## Interface en ligne (`/application`)
+
+Consultation depuis un navigateur des animaux des structures, d'après leurs fichiers de synchronisation : liste
+(recherche, statut, espèce), fiche (identité, santé, alimentation, suivis demandés, traitements, journal des soins et
+pesées, parcours, photos, documents ; dépenses et adoption pour les responsables, trésoriers et consultation). Une
+famille d'accueil seule ne voit que les animaux qui lui sont confiés (placement en cours chez un contact qui a
+l'adresse de son compte). L'état est reconstitué comme dans le logiciel (dernier état complet puis journaux) par
+`app/lib/online.php` et gardé dans `storage/cache/` jusqu'au prochain fichier reçu. Lecture seule pour le moment.
+
 ## À venir
 
-- Interface en ligne des fiches des animaux (lecture et saisie depuis un navigateur).
+- Saisie depuis l'interface en ligne (pesées, soins, notes…), écrite comme un journal d'appareil.
 - Filtrage par rôle des données synchronisées par le site.
 - Paiement des abonnements en ligne (Stripe) et factures.
