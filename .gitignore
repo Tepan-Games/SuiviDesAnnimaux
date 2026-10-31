@@ -1,0 +1,7 @@
+# Accès à la base et réglages propres à chaque installation
+app/config.php
+app/config.local.php
+# Journaux, e-mails de test, fichiers envoyés
+storage/
+# Base MySQL de test locale
+test-output/

@@ -1,0 +1,8 @@
+# Déploiement Git d'OVH : le dépôt entier est copié dans le dossier du site. Seul www/ est servi ;
+# le code, la base, les outils et les journaux restent inaccessibles depuis le web.
+RewriteEngine On
+RewriteRule ^(\.git|app|database|tools|storage|test-output)(/|$) - [F,L]
+RewriteCond %{REQUEST_URI} !^/www/
+RewriteRule ^(.*)$ www/$1 [L]
+
+Options -Indexes

@@ -1,0 +1,12 @@
+# Toutes les adresses passent par index.php, sauf les fichiers qui existent (feuilles de style, images).
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteCond %{HTTP_HOST} !^localhost [NC]
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [QSA,L]
+
+Options -Indexes
+<IfModule mod_headers.c>
+    Header always set Strict-Transport-Security "max-age=31536000"
+</IfModule>
