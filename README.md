@@ -104,10 +104,21 @@ Consultation depuis un navigateur des animaux des structures, d'après leurs fic
 pesées, parcours, photos, documents ; dépenses et adoption pour les responsables, trésoriers et consultation). Une
 famille d'accueil seule ne voit que les animaux qui lui sont confiés (placement en cours chez un contact qui a
 l'adresse de son compte). L'état est reconstitué comme dans le logiciel (dernier état complet puis journaux) par
-`app/lib/online.php` et gardé dans `storage/cache/` jusqu'au prochain fichier reçu. Lecture seule pour le moment.
+`app/lib/online.php` et gardé dans `storage/cache/` jusqu'au prochain fichier reçu.
+
+Mêmes fonctions que le logiciel et l'application (sauf la synchronisation elle-même) : accueil (traitements à donner,
+rappels, rendez-vous, frais et entretiens, assurance à envoyer, repas du jour, suivis demandés, stock à racheter),
+ajout, modification et suppression des animaux et de tout leur suivi (journal et pesées, traitements avec « Donné » /
+« Oublié » qui décompte le stock, photos et documents envoyés, parcours, suivis demandés, repas et eau, dépenses,
+adoption), contacts, stock, frais et entretiens réguliers (« Payé » crée la dépense), pontes. Le site écrit comme un
+appareil de plus : chaque enregistrement est un journal `journaux/<ticks>_site.json` au format du logiciel
+(`app/lib/online_write.php`), que les appareils reçoivent à leur prochaine synchronisation. Formulaires :
+`app/lib/online_schema.php` ; règles de l'accueil, des prises et des tâches : `app/lib/online_agenda.php` ; écrans :
+`app/pages/online_edit.php`. Droits comme dans le logiciel : consultation en lecture seule, famille d'accueil limitée à
+ses animaux (journal, traitements, photos, documents, repas), dépenses réservées aux responsables et trésoriers,
+suppression d'un animal réservée aux responsables ; saisie refusée quand la licence n'accepte plus d'envois.
 
 ## À venir
 
-- Saisie depuis l'interface en ligne (pesées, soins, notes…), écrite comme un journal d'appareil.
 - Filtrage par rôle des données synchronisées par le site.
 - Paiement des abonnements en ligne (Stripe) et factures.

@@ -3,9 +3,9 @@
     <div class="contenu">
         <div class="titre-page"><h1>Interface en ligne</h1></div>
         <?php require __DIR__ . '/../account/_nav.php' ?>
-        <p class="discret">Consultez depuis un navigateur les fiches des animaux de vos structures, telles que le logiciel Windows et
-            l’application Android les ont synchronisées par le site. La modification en ligne arrive bientôt : en attendant,
-            utilisez le logiciel ou l’application.</p>
+        <p class="discret">Suivez vos structures depuis un navigateur, comme dans le logiciel Windows et l’application Android :
+            accueil et échéances, fiches des animaux, journal, traitements, photos, documents, parcours, dépenses, contacts, stock,
+            frais et entretiens. Ce que vous enregistrez ici arrive sur vos appareils à leur prochaine synchronisation.</p>
         <div class="grille">
             <?php foreach ($organisations as $organisation): ?>
                 <div class="carte">
@@ -13,14 +13,17 @@
                     <h3><?= e($organisation['name']) ?></h3>
                     <?php if ($organisation['notice']): ?><div class="message <?= $organisation['notice'][0] ?> petit"><?= e($organisation['notice'][1]) ?></div><?php endif ?>
                     <?php if ($organisation['synced_at'] === null): ?>
-                        <p class="discret petit">Aucune donnée reçue pour le moment. Dans le logiciel Windows, ouvrez l’espace de la
-                            structure puis <strong>Paramètres › Synchronisation › Se connecter au site</strong>.</p>
+                        <p class="discret petit">Aucune donnée reçue pour le moment. Commencez ici, ou dans le logiciel Windows ouvrez
+                            l’espace de la structure puis <strong>Paramètres › Synchronisation › Se connecter au site</strong>.</p>
                     <?php else: ?>
                         <p class="petit"><?= (int)$organisation['present_count'] ?> <?= $organisation['present_count'] > 1 ? 'animaux présents' : 'animal présent' ?>
                             <span class="discret">· <?= (int)$organisation['animal_count'] ?> en tout</span></p>
                         <p class="discret petit">Dernières données reçues le <?= e(format_date(date('Y-m-d H:i:s', (int)$organisation['synced_at']), true)) ?></p>
-                        <a class="bouton petit" href="/application/animaux?o=<?= (int)$organisation['id'] ?>">Voir les animaux</a>
                     <?php endif ?>
+                    <div class="boutons">
+                        <a class="bouton petit" href="/application/accueil?o=<?= (int)$organisation['id'] ?>">Ouvrir</a>
+                        <a class="bouton petit secondaire" href="/application/animaux?o=<?= (int)$organisation['id'] ?>">Animaux</a>
+                    </div>
                 </div>
             <?php endforeach ?>
             <?php if (!$organisations): ?>

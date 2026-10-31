@@ -8,7 +8,7 @@ if (PHP_SAPI === 'cli-server' && is_file(__DIR__ . parse_url($_SERVER['REQUEST_U
 
 // Seul fichier PHP public : tout le code est hors du dossier www (inaccessible depuis le web).
 require __DIR__ . '/../app/bootstrap.php';
-foreach (['public', 'account', 'organisation', 'support', 'admin', 'devices', 'api', 'newsletter', 'online'] as $pages) {
+foreach (['public', 'account', 'organisation', 'support', 'admin', 'devices', 'api', 'newsletter', 'online', 'online_edit'] as $pages) {
     require APP_ROOT . "/pages/$pages.php";
 }
 
@@ -45,6 +45,14 @@ $routes = [
     '/application/animaux' => 'page_online_animals',
     '/application/animal' => 'page_online_animal',
     '/application/fichier' => 'page_online_file',
+    '/application/accueil' => 'page_online_home',
+    '/application/fiche' => 'page_online_form',
+    '/application/supprimer' => 'page_online_delete',
+    '/application/prise' => 'page_online_dose',
+    '/application/contacts' => 'page_online_contacts',
+    '/application/stock' => 'page_online_stock',
+    '/application/taches' => 'page_online_tasks',
+    '/application/pontes' => 'page_online_eggs',
     // Administration
     '/admin' => 'page_admin_dashboard',
     '/admin/clients' => 'page_admin_clients',

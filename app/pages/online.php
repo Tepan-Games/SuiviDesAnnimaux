@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-// ===== Interface en ligne : consultation des données synchronisées des structures (lecture seule pour le moment) =====
+// ===== Interface en ligne : consultation des données synchronisées des structures (saisie : app/pages/online_edit.php) =====
 
 /** Structures du compte, avec le nombre d'animaux visibles et la date des dernières données reçues. */
 function page_online_app(): void
@@ -97,12 +97,22 @@ function page_online_animal(): void
         $adoptions = online_rows_of($state, 'Adoptions', $id);
         usort($adoptions, $byDateDesc('AdoptionDate'));
     }
+    $foodLogs = array_values(array_filter(online_rows_of($state, 'FoodLogs', $id),
+        fn($l) => substr((string)($l['LogDate'] ?? ''), 0, 10) >= date('Y-m-d', strtotime('-13 days'))));
+    usort($foodLogs, $byDateDesc('LogDate'));
+    $administrations = online_rows_of($state, 'MedicationAdministrations', $id);
+    usort($administrations, $byDateDesc('RecordedAt'));
+    $can = [];
+    foreach (array_keys(online_forms()) as $table) {
+        $can[$table] = online_can_write($organisation, $table);
+    }
     view('online/animal', [
         'organisation' => $organisation, 'state' => $state, 'animal' => $animal, 'animals' => $animals,
         'contacts' => $state['rows']['Contacts'] ?? [],
         'events' => $events, 'treatments' => $treatments, 'placements' => $placements, 'documents' => $documents,
         'photos' => $photos, 'followUps' => $followUps, 'weights' => $weights,
-        'finance' => $finance, 'expenses' => $expenses, 'adoptions' => $adoptions,
+        'finance' => $finance, 'expenses' => $expenses, 'adoptions' => $adoptions, 'foodLogs' => $foodLogs,
+        'administrations' => array_slice($administrations, 0, 10), 'can' => $can,
     ], (string)($animal['Name'] ?? 'Animal'));
 }
 

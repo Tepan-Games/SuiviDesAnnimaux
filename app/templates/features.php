@@ -48,7 +48,7 @@
                     <li>Vue réunie de tous vos espaces</li>
                     <li>Invitation par QR code ou lien, sans mot de passe</li>
                     <li>Dernières nouvelles des animaux confiés</li>
-                    <li>Interface en ligne : fiches des animaux depuis un navigateur</li>
+                    <li>Interface en ligne : accueil, fiches, soins, traitements, photos, stock et frais depuis un navigateur, sans rien installer</li>
                 </ul>
             </div>
             <div class="carte">

@@ -2,14 +2,13 @@
  * @var string $search @var string $status @var string $species @var array $speciesList */
 $o = (int)$organisation['id'];
 $contacts = $state['rows']['Contacts'] ?? [];
+$tab = 'animaux';
 ?>
 <section class="page">
     <div class="contenu">
-        <div class="titre-page">
-            <div><span class="pastille"><?= e($organisation['kind']) ?></span><h1><?= e($organisation['name']) ?></h1></div>
-            <a class="bouton petit secondaire" href="/application">← Interface en ligne</a>
-        </div>
+        <?php require __DIR__ . '/_title.php' ?>
         <?php require __DIR__ . '/_header.php' ?>
+        <div class="titre-section">
         <form class="filtres" method="get" action="/application/animaux">
             <input type="hidden" name="o" value="<?= $o ?>">
             <input type="search" name="q" value="<?= e($search) ?>" placeholder="Nom, puce, tatouage, race" aria-label="Rechercher">
@@ -28,6 +27,8 @@ $contacts = $state['rows']['Contacts'] ?? [];
             <?php endif ?>
             <button class="bouton petit" type="submit">Afficher</button>
         </form>
+        <?php if (online_can_write($organisation, 'Animals')): ?><a class="bouton petit" href="/application/fiche?o=<?= $o ?>&amp;t=Animals">Ajouter un animal</a><?php endif ?>
+        </div>
         <p class="discret petit"><?= count($animals) ?> <?= count($animals) > 1 ? 'animaux affichés' : 'animal affiché' ?> sur <?= $total ?>.
             <?php if ($state['synced_at']): ?>Dernières données reçues le <?= e(format_date(date('Y-m-d H:i:s', (int)$state['synced_at']), true)) ?>.<?php endif ?></p>
         <?php if (!$animals): ?>

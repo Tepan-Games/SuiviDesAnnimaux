@@ -17,7 +17,11 @@ assistance, administration. Logiciel Windows : dépôt `C:\Users\arcuc\Projects\
   état d'une structure reconstitué depuis `storage/sync/<id>/` comme `SyncEngine` du logiciel (instantané + journaux
   après les curseurs, modification la plus récente gagnante), cache `storage/cache/etat-<id>.json` ; droits comme
   `SpaceAccess` (famille d'accueil seule : animaux confiés ; dépenses : responsable, trésorier, consultation) ; fichiers
-  servis seulement s'ils sont cités par un animal visible. Lecture seule ; prochaine étape : saisie écrite en journal.
+  servis seulement s'ils sont cités par un animal visible. Saisie (`app/pages/online_edit.php`) : le site écrit comme
+  l'appareil « site » (`journaux/<ticks>_site.json`, `online_write_changes`, suppressions avec leurs suites
+  `ONLINE_LINKS`) ; formulaires `online_forms()` (`app/lib/online_schema.php`, mêmes colonnes et listes que le logiciel :
+  une nouvelle colonne obligatoire du logiciel doit y être ajoutée) ; accueil, suivis, prises et tâches
+  (`app/lib/online_agenda.php`) reprennent `GetDashboardItems`, `FollowUpService`, `TreatmentService`, `RecurringTaskService`.
 - `app/pages/` : fonctions `page_*` appelées par `www/index.php` (`api.php` : adresses `/api/…`, sans session ni
   cookie) ; `app/templates/` : écrans.
 - `database/schema.sql` : schéma complet (un changement s'applique à la main dans phpMyAdmin chez OVH) ; chaque

@@ -67,6 +67,16 @@ Le site lit les fichiers de synchronisation de chaque structure (`app/lib/online
 - photos et documents (`fichier:<sha256>.<ext>`) servis par `/application/fichier` seulement s'ils sont cités par un
   animal que la personne peut voir.
 
-Suite prévue : saisie en ligne (pesée, soin, note, photo) écrite par le site comme un appareil
-(`journaux/<ticks>_site-<id compte>.json`, au format du logiciel) pour que le logiciel et l'application la reçoivent
-à leur prochaine synchronisation.
+## Saisie en ligne (31/10/2026)
+
+Le site écrit comme un appareil de plus, `site` (`app/lib/online_write.php`) :
+- chaque enregistrement est un journal `journaux/<ticks .NET sur 19 chiffres>_site.json` (`Format` 1, `Device` « site »,
+  `Cursors` null), nom toujours croissant (verrou `.site.lock`) ; les appareils le lisent comme ceux des autres appareils ;
+- `Data` contient la ligne entière : celle déjà connue (colonnes que le site n'affiche pas comprises) plus les valeurs du
+  formulaire ; une nouvelle ligne reçoit `CreatedAt` (et `UpdatedAt` pour Animals et StockItems), heure locale
+  « aaaa-mm-jj hh:mm:ss » ; identifiants de 32 caractères hexadécimaux ; liens par `SyncId` ;
+- fichiers envoyés rangés dans `fichiers/<sha256>.<ext>` et cités `fichier:<sha256>.<ext>`, comme le logiciel ;
+- une suppression écrit aussi ses suites (lignes liées supprimées ou détachées, selon les clés étrangères du logiciel) ;
+- une prise de traitement écrit dans le même journal le traitement (prochaine prise), la prise
+  (`MedicationAdministrations`) et le stock décompté ; des frais payés, la tâche et la dépense.
+- Le site n'écrit jamais d'état complet : le logiciel en refait un à sa prochaine synchronisation.

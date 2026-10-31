@@ -193,6 +193,31 @@ summary { cursor: pointer; color: var(--vert); font-weight: 600; }
 .galerie figure { margin: 0; }
 .galerie img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; display: block; }
 
+/* Saisie en ligne */
+.titre-section { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin: 0 0 12px; }
+.titre-section h2 { margin: 0; }
+.titre-section .filtres { margin: 0; flex: 1 1 320px; }
+.titre-section.section-fiche { margin-top: 32px; }
+.titre-section .boutons { margin: 0; }
+.contenu.etroit-large { max-width: 900px; }
+.fiche-saisie { padding: 22px 24px; }
+.champs-saisie { display: grid; gap: 0 18px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.champs-saisie:empty { display: none; }
+.champ.large { grid-column: 1 / -1; }
+.champ .case { margin-top: 38px; }
+.section-saisie { font-size: 1.15rem; margin: 26px 0 0; padding-top: 14px; border-top: 1px solid var(--bord); }
+.aide { margin: 4px 0 0; }
+.case.en-ligne { display: inline-flex; margin: 0; font-size: .9rem; }
+.boutons-ligne { white-space: nowrap; }
+.boutons-ligne form { display: flex; gap: 6px; margin: 6px 0 0; }
+td.boutons-ligne form { margin: 0 0 6px; }
+.tableau tr.en-retard td:first-child { box-shadow: inset 3px 0 0 var(--rouge); }
+.tableau tr.inactif td { color: var(--gris); }
+.lien-chiffre { text-decoration: none; color: var(--texte); }
+.lien-chiffre:hover { border-color: var(--vert); }
+.ajustement { display: flex; gap: 6px; margin: 0; }
+.ajustement input[type=text] { width: 90px; margin: 0; padding: 6px 8px; }
+
 /* Administration */
 .boutons { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
 .boutons form { margin: 0; }

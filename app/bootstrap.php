@@ -11,7 +11,7 @@ if (!is_file($configFile)) {
     exit('Configuration manquante : copier app/config.example.php en app/config.php.');
 }
 $GLOBALS['config'] = require $configFile;
-foreach (['helpers', 'mail', 'auth', 'organisations', 'licences', 'tickets', 'devices', 'api', 'newsletter', 'online'] as $lib) {
+foreach (['helpers', 'mail', 'auth', 'organisations', 'licences', 'tickets', 'devices', 'api', 'newsletter', 'online', 'online_schema', 'online_write', 'online_agenda'] as $lib) {
     require APP_ROOT . "/lib/$lib.php";
 }
 
