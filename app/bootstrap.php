@@ -11,7 +11,7 @@ if (!is_file($configFile)) {
     exit('Configuration manquante : copier app/config.example.php en app/config.php.');
 }
 $GLOBALS['config'] = require $configFile;
-foreach (['helpers', 'mail', 'auth', 'organisations', 'tickets'] as $lib) {
+foreach (['helpers', 'mail', 'auth', 'organisations', 'tickets', 'devices', 'api'] as $lib) {
     require APP_ROOT . "/lib/$lib.php";
 }
 
@@ -27,7 +27,11 @@ if (!is_dir(STORAGE_DIR)) {
 ini_set('log_errors', '1');
 ini_set('error_log', STORAGE_DIR . '/php-errors.log');
 
-if (PHP_SAPI !== 'cli') {
+// L'API (/api/…) n'a ni session ni cookie : chaque appel porte le jeton de l'appareil.
+$GLOBALS['is_api'] = str_starts_with((string)parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH), '/api/');
+if (PHP_SAPI !== 'cli' && $GLOBALS['is_api']) {
+    header('X-Content-Type-Options: nosniff');
+} elseif (PHP_SAPI !== 'cli') {
     $secure = str_starts_with((string)config('base_url'), 'https://');
     session_name('suivi_session');
     session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => $secure, 'httponly' => true, 'samesite' => 'Lax']);

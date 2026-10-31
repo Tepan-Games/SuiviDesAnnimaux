@@ -12,7 +12,20 @@ stockage de fichiers, `ISyncStore` : `ListAsync(dossier)`, `ReadAsync(chemin)`, 
 Le site n'a donc qu'à fournir ces trois opérations par structure : les fichiers vont dans `storage/sync/<id structure>/`
 (protégé par `.htaccess`).
 
-## Site
+## Site (fait le 31/10/2026)
+
+État : API et pages en place, vérifiées par `tools/parcours-test.php` (119 vérifications). Changement SQL : table
+`devices` (à créer dans phpMyAdmin, voir `database/schema.sql`). Détails retenus :
+- Jeton d'appareil : 48 caractères hexadécimaux, `Authorization: Bearer` (transmis par `www/.htaccess` chez OVH).
+- Réponses de connexion : `{token, email, name, organisations:[{id, name, kind, roles:[…], licence, plan}]}`.
+- Erreurs : code HTTP + `{error, message}` ; `error` : `identifiants`, `code`, `jeton` (401), `trop_essais` (429),
+  `structure` (404, non membre), `absent` (404, fichier), `chemin` (400), `incomplet` (400), `licence` (403, écriture
+  seulement), `taille` (413, 30 Mo par défaut, réglage `sync.max_bytes`), `methode` (405), `adresse` (404).
+- En plus du plan : `POST /api/deconnexion` (révoque le jeton de l'appareil) ; un nouveau mot de passe choisi par
+  « mot de passe oublié » déconnecte tous les appareils du compte.
+- QR code dessiné dans le navigateur (`www/assets/js/qrcode.js`, MIT, Kazuhiko Arase).
+
+Plan d'origine :
 
 - Table `devices` (id, user_id, name, token_hash, created_at, last_seen_at, revoked_at) ; codes de connexion dans
   `user_tokens` (type `appareil`, 15 minutes, usage unique, format `XXXX-XXXX`).

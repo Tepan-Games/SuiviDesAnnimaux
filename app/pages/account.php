@@ -114,6 +114,8 @@ function page_reset_password(): void
             q('UPDATE users SET password_hash = ?, email_verified_at = COALESCE(email_verified_at, ?) WHERE id = ?',
                 [password_hash($password, PASSWORD_DEFAULT), now(), $userId]);
             audit('compte.mot_de_passe', '', $userId);
+            // Mot de passe oublié (peut-être volé) : les appareils connectés devront se reconnecter.
+            revoke_all_devices($userId);
             flash('Mot de passe changé : vous pouvez vous connecter.');
             redirect('/connexion');
         }

@@ -11,8 +11,10 @@ assistance, administration. Logiciel Windows : dépôt `C:\Users\arcuc\Projects\
 - `.htaccess` racine : le déploiement Git copie tout le dépôt ; seul `www/` est servi, `app/`, `database/`, `tools/`,
   `storage/` sont interdits (et ont leur propre `.htaccess` « Require all denied »).
 - `app/lib/` : helpers (db, q, e, url, csrf, flash, audit, view), auth, organisations (membres, invitations, licences),
-  tickets, mail (mode `log` en local : `storage/mails.log`).
-- `app/pages/` : fonctions `page_*` appelées par `www/index.php` ; `app/templates/` : écrans.
+  tickets, mail (mode `log` en local : `storage/mails.log`), devices (appareils connectés, codes `XXXX-XXXX`), api (JSON,
+  jeton `Authorization: Bearer`, stockage de synchronisation `storage/sync/<id structure>/`).
+- `app/pages/` : fonctions `page_*` appelées par `www/index.php` (`api.php` : adresses `/api/…`, sans session ni
+  cookie) ; `app/templates/` : écrans.
 - `database/schema.sql` : schéma complet (un changement s'applique à la main dans phpMyAdmin chez OVH).
 - Rôles (`ROLES`) identiques au logiciel (`SpaceRoles` : responsable, soins, accueil, tresorier, consultation).
 
@@ -23,9 +25,10 @@ assistance, administration. Logiciel Windows : dépôt `C:\Users\arcuc\Projects\
   sha256, `app/config.php` jamais versionné (dépôt **public**).
 - Après chaque modification : `powershell -ExecutionPolicy Bypass -File tools/test-local.ps1` (MySQL de test isolé de
   Laragon sur le port 3399, serveur PHP sur http://localhost:8080, parcours `tools/parcours-test.php`) ; `-Garder` laisse
-  le site ouvert. Étendre `parcours-test.php` à chaque fonctionnalité.
+  le site ouvert. Sous Linux (MariaDB) : `bash tools/test-local.sh`. Étendre `parcours-test.php` à chaque fonctionnalité.
 - Interface et textes en français. Commits signés « Tepan Games » <arcuce@hotmail.com>.
 
-## Prochaine étape : synchronisation des structures par le site
+## Synchronisation des structures par le site
 
-Voir `docs/synchronisation-par-le-site.md`.
+Voir `docs/synchronisation-par-le-site.md`. Partie site faite (API, appareils, codes) ; reste le logiciel Windows
+(`SiteStore`, `SiteAccount`, `SiteDialog`) puis Android.
