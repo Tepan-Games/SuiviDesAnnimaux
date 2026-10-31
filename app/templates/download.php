@@ -11,7 +11,7 @@
             <div class="carte">
                 <h3>Android</h3>
                 <p>L’application pour le quotidien : prises, pesées, repas, photos, scan des boîtes et des vignettes.</p>
-                <a class="bouton" href="<?= e(config('download_android')) ?>">Google Play</a>
+                <?php require APP_ROOT . '/templates/_google_play.php' ?>
             </div>
             <div class="carte">
                 <h3>Pour une structure</h3>
