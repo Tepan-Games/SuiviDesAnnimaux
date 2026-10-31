@@ -89,8 +89,8 @@ function page_api_sync_file(): void
     }
 
     $licence = organisation_licence($id);
-    if ($licence && in_array($licence['status'], SYNC_READ_ONLY_STATUSES, true)) {
-        api_error(403, 'licence', 'La licence de la structure est ' . mb_strtolower(LICENCE_STATUSES[$licence['status']])
+    if (licence_is_read_only($licence)) {
+        api_error(403, 'licence', 'La licence de la structure est ' . mb_strtolower(LICENCE_STATUSES[licence_effective_status($licence)] ?? '')
             . ' : les données restent lisibles, mais plus rien n’est envoyé. Voir l’espace client du site.');
     }
     // Au-delà de post_max_size, PHP vide le corps : refuser plutôt qu'écrire un fichier vide.

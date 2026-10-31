@@ -1,4 +1,4 @@
-<?php /** @var array $organisation @var bool $manage @var array $members @var array $invitations @var ?array $licence @var ?string $newLink @var array $user */
+<?php /** @var array $organisation @var bool $manage @var array $members @var array $invitations @var ?array $licence @var array $usage @var ?string $newLink @var array $user */
 $id = (int)$organisation['id'];
 ?>
 <section class="page">
@@ -20,11 +20,20 @@ $id = (int)$organisation['id'];
                 <h3>Licence</h3>
                 <?php if ($licence): ?>
                     <p><strong><?= e($licence['plan_name']) ?></strong>
-                        · <span class="pastille <?= $licence['status'] === 'active' ? '' : 'orange' ?>"><?= e(LICENCE_STATUSES[$licence['status']] ?? $licence['status']) ?></span></p>
+                        · <span class="pastille <?= licence_effective_status($licence) === 'active' ? '' : 'orange' ?>"><?= e(LICENCE_STATUSES[licence_effective_status($licence)] ?? $licence['status']) ?></span></p>
                     <p class="discret petit">
-                        <?= $licence['max_animals'] === null ? 'Animaux illimités' : 'Jusqu’à ' . (int)$licence['max_animals'] . ' animaux suivis' ?><br>
+                        <?= (int)$usage['present'] ?> <?= $usage['present'] > 1 ? 'animaux présents' : 'animal présent' ?>
+                        <?= $licence['max_animals'] === null ? '· animaux illimités' : 'sur ' . (int)$licence['max_animals'] . ' permis par la formule' ?><br>
                         Depuis le <?= e(format_date($licence['starts_at'])) ?><?= $licence['ends_at'] ? ' · jusqu’au ' . e(format_date($licence['ends_at'])) : '' ?>
                     </p>
+                    <?php if ($licence['max_animals'] !== null && $usage['present'] > (int)$licence['max_animals']): ?>
+                        <div class="message error petit">Votre structure suit plus d’animaux que sa formule n’en permet : passez à une formule supérieure.</div>
+                    <?php endif ?>
+                    <?php if ($notice = licence_notice($licence)): ?>
+                        <div class="message <?= $notice[0] ?> petit"><?= e($notice[1]) ?></div>
+                    <?php elseif (licence_is_read_only($licence)): ?>
+                        <div class="message error petit">Licence <?= e(mb_strtolower(LICENCE_STATUSES[licence_effective_status($licence)] ?? '')) ?> : vos appareils lisent encore les données mais ne peuvent plus en envoyer.</div>
+                    <?php endif ?>
                 <?php endif ?>
                 <p class="discret petit">Pour changer de formule, <a href="/compte/assistance">écrivez-nous</a> (le paiement en ligne arrive bientôt).</p>
             </div>

@@ -1,7 +1,7 @@
 <section class="page">
     <div class="contenu">
         <h1>Fonctionnalités</h1>
-        <p class="discret">Disponibles sur Windows (logiciel) et Android (application), synchronisés entre vos appareils.</p>
+        <p class="discret">Disponibles sur Windows (logiciel) et Android (application), synchronisés entre vos appareils. Les structures consultent aussi leurs animaux depuis un navigateur.</p>
         <div class="grille">
             <div class="carte">
                 <h3>Fiche de chaque animal</h3>
@@ -48,6 +48,7 @@
                     <li>Vue réunie de tous vos espaces</li>
                     <li>Invitation par QR code ou lien, sans mot de passe</li>
                     <li>Dernières nouvelles des animaux confiés</li>
+                    <li>Interface en ligne : accueil, fiches, soins, traitements, photos, stock et frais depuis un navigateur, sans rien installer</li>
                 </ul>
             </div>
             <div class="carte">

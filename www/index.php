@@ -8,7 +8,7 @@ if (PHP_SAPI === 'cli-server' && is_file(__DIR__ . parse_url($_SERVER['REQUEST_U
 
 // Seul fichier PHP public : tout le code est hors du dossier www (inaccessible depuis le web).
 require __DIR__ . '/../app/bootstrap.php';
-foreach (['public', 'account', 'organisation', 'support', 'admin', 'devices', 'api', 'newsletter'] as $pages) {
+foreach (['public', 'account', 'organisation', 'support', 'admin', 'devices', 'api', 'newsletter', 'online', 'online_edit'] as $pages) {
     require APP_ROOT . "/pages/$pages.php";
 }
 
@@ -39,12 +39,26 @@ $routes = [
     '/invitation' => 'page_invitation',
     '/compte/assistance' => 'page_support',
     '/compte/demande' => 'page_ticket',
-    '/application' => 'page_online_app',
     '/compte/appareils' => 'page_devices',
+    // Interface en ligne (données synchronisées des structures)
+    '/application' => 'page_online_app',
+    '/application/animaux' => 'page_online_animals',
+    '/application/animal' => 'page_online_animal',
+    '/application/fichier' => 'page_online_file',
+    '/application/accueil' => 'page_online_home',
+    '/application/fiche' => 'page_online_form',
+    '/application/supprimer' => 'page_online_delete',
+    '/application/prise' => 'page_online_dose',
+    '/application/contacts' => 'page_online_contacts',
+    '/application/stock' => 'page_online_stock',
+    '/application/taches' => 'page_online_tasks',
+    '/application/pontes' => 'page_online_eggs',
     // Administration
     '/admin' => 'page_admin_dashboard',
     '/admin/clients' => 'page_admin_clients',
     '/admin/client' => 'page_admin_client',
+    '/admin/formules' => 'page_admin_plans',
+    '/admin/reglages' => 'page_admin_settings',
     '/admin/utilisateurs' => 'page_admin_users',
     '/admin/assistance' => 'page_admin_support',
     '/admin/ticket' => 'page_admin_ticket',

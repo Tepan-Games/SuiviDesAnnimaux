@@ -11,7 +11,7 @@ $active = fn(string $prefix) => ($prefix === '/' ? $path === '/' : str_starts_wi
     <title><?= e($pageTitle ? "$pageTitle — Suivi des animaux" : 'Suivi des animaux') ?></title>
     <meta name="description" content="Suivi des animaux : soins, traitements, pesées, repas, stock et adoptions, sur ordinateur et téléphone. Gratuit pour les particuliers, en ligne pour les associations, pensions et élevages.">
     <link rel="icon" href="/favicon.ico">
-    <link rel="stylesheet" href="/assets/site.css?v=2">
+    <link rel="stylesheet" href="/assets/site.css?v=4">
 </head>
 <body>
 <header class="entete">

@@ -128,6 +128,9 @@ CREATE TABLE IF NOT EXISTS licences (
     ends_at DATE NULL,
     notes TEXT NULL,
     updated_at DATETIME NOT NULL,
+    grace_notified_at DATETIME NULL,
+    expired_notified_at DATETIME NULL,
+    data_deleted_at DATETIME NULL,
     UNIQUE KEY ux_licence_org (organisation_id),
     CONSTRAINT fk_licence_org FOREIGN KEY (organisation_id) REFERENCES organisations(id) ON DELETE CASCADE,
     CONSTRAINT fk_licence_plan FOREIGN KEY (plan_code) REFERENCES plans(code)
@@ -199,4 +202,11 @@ CREATE TABLE IF NOT EXISTS newsletter_deliveries (
     KEY ix_delivery_pending (newsletter_id, sent_at),
     CONSTRAINT fk_delivery_newsletter FOREIGN KEY (newsletter_id) REFERENCES newsletters(id) ON DELETE CASCADE,
     CONSTRAINT fk_delivery_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Réglages modifiables dans l'administration (échéances des licences…).
+CREATE TABLE IF NOT EXISTS site_settings (
+    name VARCHAR(60) PRIMARY KEY,
+    value VARCHAR(255) NOT NULL,
+    updated_at DATETIME NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -6,7 +6,7 @@ declare(strict_types=1);
 /** Structures dont la personne est membre, avec ses rôles et la licence. */
 function user_organisations(int $userId): array
 {
-    return q('SELECT o.*, m.roles, l.plan_code, l.status AS licence_status, l.ends_at, p.name AS plan_name,
+    return q('SELECT o.*, m.roles, l.plan_code, l.status AS licence_status, l.ends_at, l.billing, l.data_deleted_at, p.name AS plan_name,
                      (SELECT COUNT(*) FROM memberships m2 WHERE m2.organisation_id = o.id) AS members
               FROM memberships m JOIN organisations o ON o.id = m.organisation_id
               LEFT JOIN licences l ON l.organisation_id = o.id LEFT JOIN plans p ON p.code = l.plan_code
@@ -145,7 +145,119 @@ function save_licence(int $organisationId, string $plan, string $status, string 
 {
     q('INSERT INTO licences (organisation_id, plan_code, status, billing, starts_at, ends_at, notes, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE plan_code = VALUES(plan_code), status = VALUES(status), billing = VALUES(billing),
-           starts_at = VALUES(starts_at), ends_at = VALUES(ends_at), notes = VALUES(notes), updated_at = VALUES(updated_at)',
+           starts_at = VALUES(starts_at), ends_at = VALUES(ends_at), notes = VALUES(notes), updated_at = VALUES(updated_at),
+           grace_notified_at = NULL, expired_notified_at = NULL, data_deleted_at = NULL',
         [$organisationId, $plan, $status, $billing, $startsAt, $endsAt !== '' ? $endsAt : null, $notes, now()]);
     audit('licence.modification', "Structure n°$organisationId : $plan, $status, du $startsAt au " . ($endsAt ?: '—'));
+}
+
+// ===== Utilisation et alertes des licences (administration et espace client) =====
+
+/** Taille d'un dossier (octets), sous-dossiers compris. */
+function directory_size(string $dir): int
+{
+    if (!is_dir($dir)) {
+        return 0;
+    }
+    $size = 0;
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS)) as $file) {
+        $size += $file->isFile() ? $file->getSize() : 0;
+    }
+    return $size;
+}
+
+function format_bytes(int $bytes): string
+{
+    foreach (['Go' => 1024 ** 3, 'Mo' => 1024 ** 2, 'Ko' => 1024] as $unit => $factor) {
+        if ($bytes >= $factor) {
+            return number_format($bytes / $factor, 1, ',', ' ') . " $unit";
+        }
+    }
+    return "$bytes octets";
+}
+
+/**
+ * Utilisation d'une structure d'après ses données synchronisées : animaux présents (ceux que compte la formule),
+ * animaux en tout, date des dernières données reçues. $withStorage : taille des fichiers (plus long à calculer).
+ */
+function organisation_usage(int $organisationId, bool $withStorage = false): array
+{
+    $state = online_state($organisationId);
+    $animals = $state['rows']['Animals'] ?? [];
+    $usage = [
+        'present' => count(array_filter($animals, fn($a) => ($a['Status'] ?? 'Présent') === 'Présent')),
+        'animals' => count($animals),
+        'synced_at' => $state['synced_at'],
+    ];
+    if ($withStorage) {
+        $usage['storage'] = directory_size(sync_root($organisationId));
+    }
+    return $usage;
+}
+
+/**
+ * Alertes d'une licence : [clé => libellé]. Clés : fin_proche (fin dans le délai d'alerte), grace (fin passée, période de
+ * grâce), expiree (grâce terminée : lecture seule, données encore gardées), donnees_supprimees, depassement (plus
+ * d'animaux présents que la formule n'en permet), sans_licence. $licence : ligne avec status, billing, ends_at,
+ * data_deleted_at et max_animals (null = illimité).
+ */
+function licence_alerts(?array $licence, int $presentAnimals): array
+{
+    if (!$licence || empty($licence['status'])) {
+        return ['sans_licence' => 'Sans licence'];
+    }
+    $alerts = [];
+    $timeline = licence_timeline($licence);
+    $phase = licence_phase($licence);
+    if ($phase === 'supprimee') {
+        $alerts['donnees_supprimees'] = 'Données supprimées le ' . format_date($licence['data_deleted_at']);
+    } elseif ($phase === 'grace') {
+        $alerts['grace'] = 'Grâce jusqu’au ' . format_date($timeline['grace_end']);
+    } elseif ($timeline && ($phase === 'expiree' || (in_array($licence['status'], ['expiree', 'resiliee'], true) && $timeline['end'] < date('Y-m-d')))) {
+        $alerts['expiree'] = site_setting('licence.suppression_auto') ? 'Suppression le ' . format_date($timeline['deletion']) : 'Expirée';
+    } elseif ($phase === 'en_cours' && $timeline && $timeline['end'] <= date('Y-m-d', strtotime('+' . site_setting('licence.alerte_jours') . ' days'))) {
+        $alerts['fin_proche'] = 'Fin le ' . format_date($timeline['end']);
+    }
+    if (($licence['max_animals'] ?? null) !== null && $presentAnimals > (int)$licence['max_animals']) {
+        $alerts['depassement'] = "$presentAnimals animaux pour " . (int)$licence['max_animals'];
+    }
+    return $alerts;
+}
+
+/** Prolonge une licence d'une durée (« 1 month », « 1 year ») à partir de sa fin, ou d'aujourd'hui si elle est passée ou absente. */
+function extend_licence(int $organisationId, string $period): ?string
+{
+    $licence = organisation_licence($organisationId);
+    if (!$licence) {
+        return null;
+    }
+    $from = $licence['ends_at'] && $licence['ends_at'] > date('Y-m-d') ? $licence['ends_at'] : date('Y-m-d');
+    $end = date('Y-m-d', strtotime("$from +$period"));
+    $status = in_array($licence['status'], ['suspendue', 'expiree', 'resiliee'], true) ? 'active' : $licence['status'];
+    save_licence($organisationId, $licence['plan_code'], $status, $licence['billing'], $licence['starts_at'], $end, (string)$licence['notes']);
+    return $end;
+}
+
+/** Ajoute un compte existant à une structure (ou change ses rôles s'il en est déjà membre). */
+function add_member(int $organisationId, int $userId, string $roles): void
+{
+    q('INSERT INTO memberships (organisation_id, user_id, roles, created_at) VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE roles = VALUES(roles)', [$organisationId, $userId, $roles, now()]);
+    audit('membre.ajout', "Structure n°$organisationId : compte n°$userId → " . role_labels($roles));
+}
+
+/** Nouveau titulaire d'une structure : il doit en être membre, et devient responsable. Renvoie un message d'erreur, ou null. */
+function transfer_organisation(int $organisationId, int $userId): ?string
+{
+    $member = q('SELECT roles FROM memberships WHERE organisation_id = ? AND user_id = ?', [$organisationId, $userId])->fetch();
+    if (!$member) {
+        return 'Le nouveau titulaire doit être membre de la structure.';
+    }
+    if (!can_manage($member['roles'])) {
+        q('UPDATE memberships SET roles = ? WHERE organisation_id = ? AND user_id = ?',
+            [implode(',', array_unique(array_merge(['responsable'], online_role_list($member['roles'])))), $organisationId, $userId]);
+    }
+    q('UPDATE organisations SET owner_user_id = ? WHERE id = ?', [$userId, $organisationId]);
+    audit('structure.titulaire', "Structure n°$organisationId : compte n°$userId");
+    return null;
 }

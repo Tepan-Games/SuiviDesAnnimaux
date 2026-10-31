@@ -13,6 +13,15 @@ assistance, administration. Logiciel Windows : dépôt `C:\Users\arcuc\Projects\
 - `app/lib/` : helpers (db, q, e, url, csrf, flash, audit, view), auth, organisations (membres, invitations, licences),
   tickets, mail (mode `log` en local : `storage/mails.log`), devices (appareils connectés, codes `XXXX-XXXX`), api (JSON,
   jeton `Authorization: Bearer`, stockage de synchronisation `storage/sync/<id structure>/`).
+- Interface en ligne (`/application/…`, `app/pages/online.php`, `app/lib/online.php`, écrans `app/templates/online/`) :
+  état d'une structure reconstitué depuis `storage/sync/<id>/` comme `SyncEngine` du logiciel (instantané + journaux
+  après les curseurs, modification la plus récente gagnante), cache `storage/cache/etat-<id>.json` ; droits comme
+  `SpaceAccess` (famille d'accueil seule : animaux confiés ; dépenses : responsable, trésorier, consultation) ; fichiers
+  servis seulement s'ils sont cités par un animal visible. Saisie (`app/pages/online_edit.php`) : le site écrit comme
+  l'appareil « site » (`journaux/<ticks>_site.json`, `online_write_changes`, suppressions avec leurs suites
+  `ONLINE_LINKS`) ; formulaires `online_forms()` (`app/lib/online_schema.php`, mêmes colonnes et listes que le logiciel :
+  une nouvelle colonne obligatoire du logiciel doit y être ajoutée) ; accueil, suivis, prises et tâches
+  (`app/lib/online_agenda.php`) reprennent `GetDashboardItems`, `FollowUpService`, `TreatmentService`, `RecurringTaskService`.
 - `app/pages/` : fonctions `page_*` appelées par `www/index.php` (`api.php` : adresses `/api/…`, sans session ni
   cookie) ; `app/templates/` : écrans.
 - `database/schema.sql` : schéma complet (un changement s'applique à la main dans phpMyAdmin chez OVH) ; chaque
@@ -21,6 +30,14 @@ assistance, administration. Logiciel Windows : dépôt `C:\Users\arcuc\Projects\
   (assistance, contact, « Répondre » de tous les e-mails), `newsletter.from` = newsletter@. Lettre d'information :
   `app/lib/newsletter.php`, `app/pages/newsletter.php` (administration `/admin/lettres`, `/desinscription`) ; seulement
   aux comptes abonnés (`users.newsletter_at`) à l'adresse confirmée, envoi par lots, jeton de désinscription par envoi.
+- Administration des clients (`app/pages/admin.php`) : `admin_clients()` (filtres, alertes `licence_alerts()`, utilisation
+  `organisation_usage()` lue dans les données synchronisées), actions de la fiche client par `action`, formules
+  `/admin/formules` (jamais supprimées). Toute action sur une structure est notée dans `audit_log` avec un détail
+  commençant par « Structure n°<id> » (historique de la fiche).
+- Échéances des licences (`app/lib/licences.php`) : `licence_timeline()` (fin, fin de grâce, suppression),
+  `licence_phase()`, `licence_is_read_only()` (utilisé par l'API), `process_licence_deadlines()` lancé chaque jour par
+  `tools/echeances-licences.php` (cron OVH) ou depuis `/admin/reglages` ; réglages dans la table `site_settings`
+  (`site_setting()`, `LICENCE_SETTINGS` ; les points des noms deviennent « _ » dans les formulaires).
 - Rôles (`ROLES`) identiques au logiciel (`SpaceRoles` : responsable, soins, accueil, tresorier, consultation).
 
 ## Règles

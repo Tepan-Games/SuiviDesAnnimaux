@@ -45,6 +45,32 @@ liens de confirmation, de mot de passe et d'invitation à usage unique dont seul
    webhook proposé par OVH). Un changement de `database/schema.sql` s'applique à la main dans phpMyAdmin
    (fichiers de `database/migrations/`, dans l'ordre des dates).
 
+## Administration des clients et des licences
+
+*Administration › Clients et licences* : recherche (structure, titulaire, e-mail, SIRET), filtres (état, formule, type,
+alertes : fin dépassée, fin dans les 30 jours, au-delà de la formule, sans licence), animaux présents comparés à la
+limite de la formule (d'après les données synchronisées), dernières données reçues, export CSV (Excel). Fiche d'un
+client : licence (formulaire complet, prolonger d'un mois ou d'un an, suspendre, réactiver, résilier), coordonnées,
+membres (rôles, ajout d'un compte existant, retrait, changement de titulaire), message aux responsables, appareils
+connectés, taille des données, demandes d'assistance et historique. *Formules* : noms, prix, limite d'animaux, ordre,
+proposée ou retirée de la page Tarifs, création. Le tableau de bord liste les licences à régulariser (fin dépassée,
+dépassement de la formule) et le nombre de licences par formule.
+
+## Échéances des licences
+
+À la date de fin d'une licence : **période de grâce** (annuelle : 30 jours, mensuelle : 7 jours) pendant laquelle tout
+fonctionne, avec alertes et e-mail aux responsables ; puis licence **expirée** : les appareils lisent encore mais
+n'envoient plus, l'interface en ligne montre encore les données ; **30 jours plus tard, les données synchronisées
+sont supprimées du site** (pas des appareils), avec un e-mail à chaque étape. Durées et suppression automatique
+réglables dans *Administration › Réglages* (avec la liste des échéances et un bouton pour passer en revue tout de
+suite). Prolonger ou enregistrer une licence remet ses échéances à zéro.
+
+**Tâche planifiée chez OVH** (obligatoire pour les e-mails et la suppression) : *Hébergements › suivi-des-animaux.fr ›
+Tâches planifiées - Cron › Ajouter une planification* : commande `tools/echeances-licences.php` (chemin depuis la racine
+du site, par ex. `www/../tools/echeances-licences.php` selon le dossier choisi), langage PHP 8.2 ou plus, fréquence
+« Tous les jours », e-mail de rapport : en cas d'erreur. Avant la première mise en ligne de cette version, appliquer
+`database/migrations/2026-10-31-echeances-licences.sql` dans phpMyAdmin.
+
 ## Lettre d'information
 
 *Administration › Lettres d'information* : nouvelle lettre (modèle proposé, `{nom}` et `{site}` remplacés à l'envoi),
@@ -61,7 +87,7 @@ powershell -ExecutionPolicy Bypass -File tools/test-local.ps1
 
 Démarre une base MySQL de test dans `test-output/`, importe le schéma, lance le serveur PHP sur
 http://localhost:8080 et passe le parcours complet (inscription, confirmation, structure, invitation, assistance,
-administration, lettre d'information, appareils et API de synchronisation). Les e-mails sont écrits dans `storage/mails.log`.
+administration, lettre d'information, appareils, API de synchronisation et interface en ligne). Les e-mails sont écrits dans `storage/mails.log`.
 Sous Linux avec MariaDB : `bash tools/test-local.sh`.
 
 ## Synchronisation des structures
@@ -71,8 +97,28 @@ dans *Mon compte › Appareils*, avec QR code) puis lisent et écrivent les fich
 structure par l'API `/api/…` (voir `docs/synchronisation-par-le-site.md`). Les fichiers sont dans
 `storage/sync/<id structure>/`, jamais servis par le web.
 
+## Interface en ligne (`/application`)
+
+Consultation depuis un navigateur des animaux des structures, d'après leurs fichiers de synchronisation : liste
+(recherche, statut, espèce), fiche (identité, santé, alimentation, suivis demandés, traitements, journal des soins et
+pesées, parcours, photos, documents ; dépenses et adoption pour les responsables, trésoriers et consultation). Une
+famille d'accueil seule ne voit que les animaux qui lui sont confiés (placement en cours chez un contact qui a
+l'adresse de son compte). L'état est reconstitué comme dans le logiciel (dernier état complet puis journaux) par
+`app/lib/online.php` et gardé dans `storage/cache/` jusqu'au prochain fichier reçu.
+
+Mêmes fonctions que le logiciel et l'application (sauf la synchronisation elle-même) : accueil (traitements à donner,
+rappels, rendez-vous, frais et entretiens, assurance à envoyer, repas du jour, suivis demandés, stock à racheter),
+ajout, modification et suppression des animaux et de tout leur suivi (journal et pesées, traitements avec « Donné » /
+« Oublié » qui décompte le stock, photos et documents envoyés, parcours, suivis demandés, repas et eau, dépenses,
+adoption), contacts, stock, frais et entretiens réguliers (« Payé » crée la dépense), pontes. Le site écrit comme un
+appareil de plus : chaque enregistrement est un journal `journaux/<ticks>_site.json` au format du logiciel
+(`app/lib/online_write.php`), que les appareils reçoivent à leur prochaine synchronisation. Formulaires :
+`app/lib/online_schema.php` ; règles de l'accueil, des prises et des tâches : `app/lib/online_agenda.php` ; écrans :
+`app/pages/online_edit.php`. Droits comme dans le logiciel : consultation en lecture seule, famille d'accueil limitée à
+ses animaux (journal, traitements, photos, documents, repas), dépenses réservées aux responsables et trésoriers,
+suppression d'un animal réservée aux responsables ; saisie refusée quand la licence n'accepte plus d'envois.
+
 ## À venir
 
-- Interface en ligne des fiches des animaux (lecture et saisie depuis un navigateur).
 - Filtrage par rôle des données synchronisées par le site.
 - Paiement des abonnements en ligne (Stripe) et factures.
