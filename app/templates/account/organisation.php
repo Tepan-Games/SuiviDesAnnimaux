@@ -48,7 +48,7 @@ $id = (int)$organisation['id'];
                     <p class="discret petit">Vos rôles : <?= e(role_labels($organisation['roles'])) ?></p>
                 <?php endif ?>
             </div>
-            <?php if ($manage): ?>
+            <?php if ($manage && directory_allowed($organisation)): ?>
                 <form class="carte" method="post" action="/compte/structure?id=<?= $id ?>">
                     <h3>Annuaire et questions</h3>
                     <?= csrf_field() ?><input type="hidden" name="action" value="annuaire">

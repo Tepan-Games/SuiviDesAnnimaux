@@ -467,6 +467,12 @@ q("UPDATE organisations SET kind = 'Pension' WHERE id = ?", [$organisationId]);
 check($code === 200 && str_contains($body, 'Une pension garde les animaux') && !str_contains($body, 'Nouveau suivi') && $code2 === 403,
     'Suivi : pension, pas de suivi par lien');
 q("UPDATE organisations SET kind = 'Association' WHERE id = ?", [$organisationId]);
+// Ancienne structure « Famille d’accueil » (particulier) : jamais dans l'annuaire ni ouverte aux questions.
+q("UPDATE organisations SET kind = 'Famille d’accueil', directory_listed = 1, accepts_questions = 1, latitude = 43.836699, longitude = 4.360054 WHERE id = ?", [$organisationId]);
+[, $dir] = api('GET', '/api/annuaire?lat=43.8367&lon=4.3601&km=20');
+[$code] = http('visiteur', "/structure?id=$organisationId");
+check($dir['organisations'] === [] && $code === 404, 'Annuaire : famille d’accueil (particulier) jamais publiée');
+q("UPDATE organisations SET kind = 'Association', directory_listed = 0, accepts_questions = 0, latitude = NULL, longitude = NULL WHERE id = ?", [$organisationId]);
 [$code] = api('POST', "/api/liens/fermer?o=$organisationId&id=$linkId", null, $aliceToken);
 [$code2, $json] = api('POST', '/api/suivi/message', ['body' => 'Encore là'], $linkToken);
 [$code3, $json3] = api('GET', '/api/suivi', null, $linkToken);

@@ -15,6 +15,24 @@ const QUESTIONS_PER_IP_HOUR = 5;
 const QUESTIONS_PER_EMAIL_DAY = 10;
 
 /**
+ * Types jamais publiés dans l'annuaire ni ouverts aux questions : ce sont des particuliers (leur adresse est privée).
+ * Même liste que FREE_KINDS (types gratuits) ; une ancienne structure « Famille d’accueil » reste ainsi cachée.
+ */
+const DIRECTORY_EXCLUDED_KINDS = ['Particulier', 'Famille d’accueil'];
+
+/** La structure peut apparaître dans l'annuaire et recevoir des questions. */
+function directory_allowed(array $organisation): bool
+{
+    return !in_array($organisation['kind'] ?? '', DIRECTORY_EXCLUDED_KINDS, true);
+}
+
+/** Condition SQL qui écarte les types de particuliers (colonne kind de organisations). */
+function directory_kind_filter(string $column = 'kind'): string
+{
+    return "$column NOT IN (" . implode(', ', array_map(fn($k) => db()->quote($k), DIRECTORY_EXCLUDED_KINDS)) . ')';
+}
+
+/**
  * Position d'une adresse : [latitude, longitude, commune] ou null. En ligne : Base Adresse Nationale
  * (api-adresse.data.gouv.fr, données ouvertes) ; réglage geocode.mode = « off » pour ne rien demander, « test » pour les tests.
  */
@@ -45,8 +63,8 @@ function geocode_address(string $address): ?array
 /** Enregistre les choix de l'annuaire et des questions ; l'adresse est géolocalisée si elle a changé. Renvoie un avertissement, ou null. */
 function save_directory_settings(array $organisation, array $values): ?string
 {
-    $listed = !empty($values['directory_listed']);
-    $questions = !empty($values['accepts_questions']);
+    $listed = !empty($values['directory_listed']) && directory_allowed($organisation);
+    $questions = !empty($values['accepts_questions']) && directory_allowed($organisation);
     $website = trim((string)($values['website'] ?? ''));
     if ($website !== '' && !preg_match('#^https?://#i', $website)) {
         $website = 'https://' . $website;
@@ -81,7 +99,7 @@ function directory_near(float $lat, float $lon, float $km, int $limit = 50): arr
     $dLat = $km / 111.0;
     $dLon = $km / max(1.0, 111.0 * cos(deg2rad($lat)));
     $rows = q('SELECT id, name, kind, phone, contact_email, address, city, website, description, species, accepts_questions, latitude, longitude
-               FROM organisations WHERE directory_listed = 1 AND latitude BETWEEN ? AND ? AND longitude BETWEEN ? AND ?',
+               FROM organisations WHERE directory_listed = 1 AND ' . directory_kind_filter() . ' AND latitude BETWEEN ? AND ? AND longitude BETWEEN ? AND ?',
         [$lat - $dLat, $lat + $dLat, $lon - $dLon, $lon + $dLon])->fetchAll();
     $result = [];
     foreach ($rows as $row) {
@@ -103,7 +121,7 @@ function haversine_km(float $lat1, float $lon1, float $lat2, float $lon2): float
 /** Structure de l'annuaire (publique), ou null si elle n'y est pas inscrite. */
 function directory_organisation(int $id): ?array
 {
-    return q('SELECT * FROM organisations WHERE id = ? AND directory_listed = 1', [$id])->fetch() ?: null;
+    return q('SELECT * FROM organisations WHERE id = ? AND directory_listed = 1 AND ' . directory_kind_filter(), [$id])->fetch() ?: null;
 }
 
 /** Structure telle que le logiciel la reçoit. */
@@ -133,7 +151,7 @@ function too_many_questions(string $email): bool
  */
 function ask_question(int $organisationId, string $name, string $email, string $body): array|string
 {
-    $organisation = q('SELECT * FROM organisations WHERE id = ? AND accepts_questions = 1', [$organisationId])->fetch();
+    $organisation = q('SELECT * FROM organisations WHERE id = ? AND accepts_questions = 1 AND ' . directory_kind_filter(), [$organisationId])->fetch();
     if (!$organisation) {
         return 'Cette structure ne reçoit pas de questions par le site.';
     }
