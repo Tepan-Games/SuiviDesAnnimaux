@@ -378,6 +378,84 @@ check($code === 403 && $json['error'] === 'licence' && str_contains($json['messa
 check($code === 200, 'API : lecture permise, licence suspendue');
 q("UPDATE licences SET status = 'active' WHERE organisation_id = ?", [$organisationId]);
 
+// ===== Suivis des animaux confiés : lien à identifiant unique, QR code, nouvelles, réponses =====
+$card = ['species' => 'Chat', 'sex' => 'Femelle', 'birthDate' => '2026-03-01', 'chip' => '250269812345678',
+    'vaccines' => [['date' => '2026-06-01', 'name' => 'Typhus coryza', 'next' => '2027-06-01']], 'advice' => ['Transition alimentaire sur 7 jours']];
+[$code, $json] = api('POST', "/api/liens?o=$organisationId", ['kind' => 'adoption', 'animal_name' => 'Mimi', 'species' => 'Chat',
+    'animal_ref' => 'animal:1234', 'recipient_name' => 'Claire Adoptante', 'recipient_email' => 'claire@test.fr', 'months' => 3,
+    'requests' => ['nouvelles', 'photo'], 'card' => $card], $aliceToken);
+check($code === 200 && preg_match('/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/', $json['reference']) && str_contains($json['url'], '/suivi?c='), 'Suivi : création par l’API');
+$linkId = $json['link']['id'];
+$linkToken = substr($json['url'], strpos($json['url'], 'c=') + 2);
+check(q('SELECT token_hash FROM animal_links WHERE id = ?', [$linkId])->fetchColumn() === hash('sha256', $linkToken), 'Suivi : seule l’empreinte du jeton est gardée');
+check(last_mail_link('/suivi\?c=') === $json['url'], 'Suivi : lien envoyé par e-mail à l’adoptant');
+[$code] = api('POST', "/api/liens?o=$organisationId", ['animal_name' => 'Pirate'], $bobToken);
+check($code === 404, 'Suivi : création refusée à un non-membre');
+[$code, $json] = api('GET', "/api/liens/messages?o=$organisationId&id=$linkId", null, $bobToken);
+check($code === 404, 'Suivi : échanges refusés à un non-membre');
+
+// La personne, sans compte : API (logiciel, application) et page web
+[$code, $json] = api('GET', '/api/suivi', null, $linkToken);
+check($code === 200 && $json['animal']['name'] === 'Mimi' && $json['card']['chip'] === '250269812345678' && $json['open'] === true
+    && $json['days_left'] >= 89 && $json['days_left'] <= 93 && str_contains($json['status'], 'encore 3 mois') && $json['organisation']['name'] === 'Asso Test', 'Suivi : fiche et jours restants pour la personne');
+[$code, $json] = api('GET', '/api/suivi', null, str_repeat('0', 48));
+check($code === 401 && $json['error'] === 'lien', 'Suivi : jeton inconnu refusé');
+[$code, $json] = api('POST', '/api/suivi/message', ['kind' => 'pesee', 'body' => 'Elle mange bien', 'weight_kg' => '3,4'], $linkToken);
+check($code === 200, 'Suivi : pesée envoyée par l’API');
+$png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+[$code, $json] = api('POST', '/api/suivi/photo?texte=' . rawurlencode('Sur le canapé'), $png, $linkToken);
+check($code === 200, 'Suivi : photo envoyée par l’API');
+$photoId = $json['id'];
+[$code, $json] = api('POST', '/api/suivi/photo', '<?php echo 1;', $linkToken);
+check($code === 400, 'Suivi : fichier qui n’est pas une image refusé');
+[$code, $body] = http('visiteur', "/suivi?c=$linkToken");
+check($code === 200 && str_contains($body, 'Mimi') && str_contains($body, 'Suivi en cours : encore 3 mois') && str_contains($body, '250269812345678')
+    && str_contains($body, 'Transition alimentaire'), 'Suivi : page de la personne (fiche, temps restant)');
+$token = csrf('visiteur', "/suivi?c=$linkToken");
+[$code, , $location] = http('visiteur', "/suivi?c=$linkToken", ['csrf' => $token, 'kind' => 'question', 'body' => 'Quelle litière conseillez-vous ?']);
+check($code === 302 && str_contains((string)@file_get_contents(STORAGE_DIR . '/mails.log'), 'Question : Mimi'), 'Suivi : question par la page, structure prévenue');
+[$code] = http('visiteur', "/suivi?c=$linkToken&photo=$photoId");
+check($code === 200, 'Suivi : la personne voit sa photo');
+[$code] = http('visiteur', '/suivi?c=' . str_repeat('a', 48));
+check($code === 404, 'Suivi : page d’un lien inconnu');
+
+// La structure : liste, échanges (non lus), réponse, photo, fiche, fin
+[$code, $json] = api('GET', "/api/liens?o=$organisationId", null, $aliceToken);
+check($code === 200 && count($json['links']) === 1 && $json['links'][0]['unread'] === 3 && $json['links'][0]['opened'] === true, 'Suivi : liste avec 3 envois non lus');
+[$code, $json] = api('GET', "/api/liens/messages?o=$organisationId&id=$linkId", null, $aliceToken);
+check($code === 200 && count($json['messages']) === 3 && $json['messages'][0]['weight_kg'] === 3.4 && $json['messages'][1]['photo'] !== null, 'Suivi : échanges reçus par le logiciel');
+[$code, $raw] = api('GET', $json['messages'][1]['photo'], null, $aliceToken);
+check($code === 200 && $raw === $png, 'Suivi : photo reçue par le logiciel');
+[, $json] = api('GET', "/api/liens?o=$organisationId", null, $aliceToken);
+check($json['links'][0]['unread'] === 0, 'Suivi : envois lus');
+[$code] = api('POST', "/api/liens/repondre?o=$organisationId&id=$linkId", ['body' => 'Une litière végétale, sans parfum.'], $aliceToken);
+check($code === 200 && str_contains((string)@file_get_contents(STORAGE_DIR . '/mails.log'), 'Une litière végétale'), 'Suivi : réponse de la structure, personne prévenue');
+[$code] = api('POST', "/api/liens/fiche?o=$organisationId&id=$linkId", ['card' => $card + ['notes' => 'Rappel vaccin en juin']], $aliceToken);
+[, $json] = api('GET', '/api/suivi', null, $linkToken);
+check($code === 200 && $json['card']['notes'] === 'Rappel vaccin en juin' && end($json['messages'])['author'] === 'structure', 'Suivi : fiche mise à jour et réponse vues par la personne');
+[$code, $body] = http('a', "/compte/suivis?o=$organisationId");
+check($code === 200 && str_contains($body, 'Mimi') && str_contains($body, 'Claire Adoptante'), 'Suivi : liste sur le site');
+[$code, $body] = http('a', "/compte/suivi?o=$organisationId&id=$linkId");
+check($code === 200 && str_contains($body, 'Quelle litière') && str_contains($body, '3,4 kg'), 'Suivi : échanges sur le site');
+[$code] = http('a', "/compte/suivi/photo?o=$organisationId&id=$linkId&m=$photoId");
+check($code === 200, 'Suivi : photo sur le site');
+[$code] = http('b', "/compte/suivi?o=$organisationId&id=$linkId");
+check($code === 404, 'Suivi : page refusée à un non-membre');
+
+// Création depuis le site (famille d'accueil, sans fin), puis fin d'un suivi
+$token = csrf('a', "/compte/suivis?o=$organisationId");
+[$code, $body] = http('a', "/compte/suivis?o=$organisationId", ['csrf' => $token, 'kind' => 'accueil', 'animal_name' => 'Rex', 'species' => 'Chien',
+    'recipient_name' => 'Famille Martin', 'recipient_email' => '', 'months' => '0', 'requests' => ['nouvelles']]);
+check($code === 200 && str_contains($body, 'data-qr="http://localhost:8080/suivi?c=') && str_contains($body, 'Suivi de Rex créé'), 'Suivi : création sur le site avec QR code');
+preg_match('#/suivi\?c=([0-9a-f]{48})#', $body, $m);
+[, $json] = api('GET', '/api/suivi', null, $m[1]);
+check($json['days_left'] === null && $json['ends_at'] === null && $json['kind'] === 'accueil', 'Suivi : famille d’accueil sans date de fin');
+[$code] = api('POST', "/api/liens/fermer?o=$organisationId&id=$linkId", null, $aliceToken);
+[$code2, $json] = api('POST', '/api/suivi/message', ['body' => 'Encore là'], $linkToken);
+[$code3, $json3] = api('GET', '/api/suivi', null, $linkToken);
+check($code === 200 && $code2 === 403 && $json['error'] === 'termine' && $code3 === 200 && $json3['open'] === false && $json3['days_left'] === 0
+    && count($json3['messages']) === 4, 'Suivi : terminé, historique encore lisible, plus d’envoi');
+
 // Limite des codes faux
 for ($i = 0; $i < 10; $i++) {
     api('POST', '/api/code', ['code' => 'AAAA-AAAA', 'device' => 'x']);

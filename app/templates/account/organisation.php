@@ -5,7 +5,10 @@ $id = (int)$organisation['id'];
     <div class="contenu">
         <div class="titre-page">
             <div><span class="pastille"><?= e($organisation['kind']) ?></span><h1><?= e($organisation['name']) ?></h1></div>
-            <a class="bouton petit secondaire" href="/compte">← Mon compte</a>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <?php if (can_see_links($organisation['roles'])): ?><a class="bouton petit" href="/compte/suivis?o=<?= $id ?>">Suivis des animaux confiés</a><?php endif ?>
+                <a class="bouton petit secondaire" href="/compte">← Mon compte</a>
+            </div>
         </div>
 
         <?php if ($newLink): ?>
