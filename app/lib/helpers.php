@@ -165,13 +165,20 @@ function format_price(int $cents): string
     return $cents === 0 ? 'Gratuit' : number_format($cents / 100, 2, ',', ' ') . ' €';
 }
 
-/** Types de structure, comme dans le logiciel. */
-const ORGANISATION_KINDS = ['Association', 'Pension', 'Élevage', 'Famille d’accueil', 'Autre'];
+/**
+ * Types de structure (payantes), comme dans le logiciel (SpaceRegistry.ProfessionalKinds). Le particulier et la famille
+ * d'accueil sont gratuits et n'ont pas de structure sur le site (règle du 01/11/2026) : la famille d'accueil est un
+ * particulier membre d'une structure avec le rôle « accueil ». Une ancienne structure « Famille d’accueil » garde son type.
+ */
+const ORGANISATION_KINDS = ['Association', 'Pension', 'Élevage', 'Magasin', 'Autre'];
+
+/** Comptes gratuits, sans structure (choix de l'inscription). */
+const FREE_KINDS = ['Particulier', 'Famille d’accueil'];
 
 /** Rôles (clés identiques au logiciel). */
 const ROLES = [
     'responsable' => ['Responsable', 'Tout, et inviter ou retirer des membres'],
-    'soins' => ['Bénévole soins', 'Animaux, soins, traitements, pesées, photos'],
+    'soins' => ['Bénévole soins', 'Animaux, soins, traitements, pesées, photos, sorties de stock'],
     'accueil' => ['Famille d’accueil', 'Seulement les animaux qu’elle accueille'],
     'tresorier' => ['Trésorier', 'Dépenses, frais, adoptions, assurance'],
     'consultation' => ['Consultation', 'Tout voir, ne rien modifier'],
