@@ -45,7 +45,8 @@ function api_input(string $name): string
         }
     }
     $value = $json[$name] ?? $_POST[$name] ?? $_GET[$name] ?? '';
-    return is_string($value) ? trim($value) : '';
+    // Les nombres d'un corps JSON (identifiants) sont acceptés comme du texte.
+    return is_string($value) ? trim($value) : (is_int($value) || is_float($value) ? (string)$value : '');
 }
 
 /** Jeton de l'en-tête Authorization (Apache le transmet par la variable posée dans www/.htaccess). */

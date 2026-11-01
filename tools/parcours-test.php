@@ -484,7 +484,8 @@ check($code === 200 && str_contains($body, 'Refuge pour chats') && !str_contains
 check($code === 400 && str_contains($json['message'], 'ne reçoit pas'), 'Questions : refusées tant que la structure ne les accepte pas');
 http('a', "/compte/structure?id=$organisationId", ['csrf' => $token, 'action' => 'annuaire', 'directory_listed' => '1', 'accepts_questions' => '1',
     'description' => 'Refuge pour chats et chiens.', 'species' => 'Chats, chiens', 'website' => 'https://asso-test.fr']);
-[$code, $json] = api('POST', '/api/question', ['organisation' => (string)$organisationId, 'name' => 'Claire', 'email' => 'claire@test.fr', 'body' => 'Adoptez-vous des chats seniors ?']);
+// Identifiant envoyé comme nombre JSON (logiciel et application).
+[$code, $json] = api('POST', '/api/question', ['organisation' => $organisationId, 'name' => 'Claire', 'email' => 'claire@test.fr', 'body' => 'Adoptez-vous des chats seniors ?']);
 $log = (string)@file_get_contents(STORAGE_DIR . '/mails.log');
 check($code === 200 && str_contains($json['url'], '/question?c=') && str_contains($log, "À : contact@asso-test.fr\nRépondre à : claire@test.fr")
     && str_contains($log, 'Votre question à Asso Test'), 'Questions : par l’API, structure prévenue (Répondre = la personne), accusé de réception');
