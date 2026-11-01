@@ -299,13 +299,16 @@ function api_follow_link(): array
     return $link;
 }
 
-/** GET /api/suivi : structure, fiche de l'animal, état du suivi (jours restants) et échanges. */
+/** GET /api/suivi[?lu=0] : structure, fiche de l'animal, état du suivi (jours restants) et échanges. */
 function page_api_follow(): void
 {
     api_require_method('GET');
     $link = api_follow_link();
     $messages = api_link_messages($link, '/api/suivi/photo?m=');
-    mark_link_read_by_family((int)$link['id']);
+    // ?lu=0 : relecture en arrière-plan par le logiciel (les réponses restent non lues jusqu'à l'ouverture du suivi).
+    if (api_input('lu') !== '0') {
+        mark_link_read_by_family((int)$link['id']);
+    }
     api_json([
         'reference' => $link['reference'],
         'kind' => $link['kind'],

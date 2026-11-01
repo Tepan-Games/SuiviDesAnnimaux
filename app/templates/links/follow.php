@@ -29,12 +29,12 @@ $requests = array_filter(explode(',', $link['requests']));
             <div class="carte">
                 <h3>Sa fiche</h3>
                 <?php $shown = false; foreach ($labels as $key => $label): if (isset($card[$key]) && is_scalar($card[$key]) && (string)$card[$key] !== ''): $shown = true ?>
-                    <p class="petit" style="margin:4px 0"><span class="discret"><?= e($label) ?> :</span> <?= e(is_bool($card[$key]) ? ($card[$key] ? 'oui' : 'non') : (string)$card[$key]) ?></p>
+                    <p class="petit" style="margin:4px 0"><span class="discret"><?= e($label) ?> :</span> <?= e(card_text($card[$key])) ?></p>
                 <?php endif; endforeach ?>
                 <?php foreach ($lists as $key => $label): if (!empty($card[$key]) && is_array($card[$key])): $shown = true ?>
                     <p class="petit" style="margin:10px 0 2px"><strong><?= e($label) ?></strong></p>
                     <ul class="petit"><?php foreach ($card[$key] as $item): ?>
-                        <li><?= e(is_array($item) ? implode(' · ', array_filter(array_map(fn($v) => is_scalar($v) ? (string)$v : '', $item))) : (string)$item) ?></li>
+                        <li><?= e(is_array($item) ? implode(' · ', array_filter(array_map('card_text', $item))) : card_text($item)) ?></li>
                     <?php endforeach ?></ul>
                 <?php endif; endforeach ?>
                 <?php if (!$shown): ?><p class="discret petit"><?= e($link['species'] ?: 'Fiche transmise par la structure avec le logiciel.') ?></p><?php endif ?>

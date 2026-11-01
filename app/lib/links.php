@@ -320,6 +320,16 @@ function photo_extension(string $data): ?string
     };
 }
 
+/** Valeur de la fiche affichée : dates aaaa-mm-jj en jj/mm/aaaa. */
+function card_text(mixed $value): string
+{
+    if (is_bool($value)) {
+        return $value ? 'oui' : 'non';
+    }
+    $text = is_scalar($value) ? (string)$value : '';
+    return preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $text, $m) ? "$m[3]/$m[2]/$m[1]" : $text;
+}
+
 /** Envoie la photo d'un message du suivi (null : rien à envoyer). */
 function send_link_photo(array $link, int $messageId): bool
 {

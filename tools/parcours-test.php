@@ -410,7 +410,7 @@ $photoId = $json['id'];
 check($code === 400, 'Suivi : fichier qui n’est pas une image refusé');
 [$code, $body] = http('visiteur', "/suivi?c=$linkToken");
 check($code === 200 && str_contains($body, 'Mimi') && str_contains($body, 'Suivi en cours : encore 3 mois') && str_contains($body, '250269812345678')
-    && str_contains($body, 'Transition alimentaire'), 'Suivi : page de la personne (fiche, temps restant)');
+    && str_contains($body, 'Transition alimentaire') && str_contains($body, '01/03/2026'), 'Suivi : page de la personne (fiche, temps restant, dates)');
 $token = csrf('visiteur', "/suivi?c=$linkToken");
 [$code, , $location] = http('visiteur', "/suivi?c=$linkToken", ['csrf' => $token, 'kind' => 'question', 'body' => 'Quelle litière conseillez-vous ?']);
 check($code === 302 && str_contains((string)@file_get_contents(STORAGE_DIR . '/mails.log'), 'Question : Mimi'), 'Suivi : question par la page, structure prévenue');
@@ -430,6 +430,9 @@ check($code === 200 && $raw === $png, 'Suivi : photo reçue par le logiciel');
 check($json['links'][0]['unread'] === 0, 'Suivi : envois lus');
 [$code] = api('POST', "/api/liens/repondre?o=$organisationId&id=$linkId", ['body' => 'Une litière végétale, sans parfum.'], $aliceToken);
 check($code === 200 && str_contains((string)@file_get_contents(STORAGE_DIR . '/mails.log'), 'Une litière végétale'), 'Suivi : réponse de la structure, personne prévenue');
+[, $json] = api('GET', '/api/suivi?lu=0', null, $linkToken);
+[, $json2] = api('GET', '/api/suivi?lu=0', null, $linkToken);
+check(end($json['messages'])['author'] === 'structure' && end($json2['messages'])['read'] === false, 'Suivi : relecture en arrière-plan sans marquer la réponse comme lue');
 [$code] = api('POST', "/api/liens/fiche?o=$organisationId&id=$linkId", ['card' => $card + ['notes' => 'Rappel vaccin en juin']], $aliceToken);
 [, $json] = api('GET', '/api/suivi', null, $linkToken);
 check($code === 200 && $json['card']['notes'] === 'Rappel vaccin en juin' && end($json['messages'])['author'] === 'structure', 'Suivi : fiche mise à jour et réponse vues par la personne');

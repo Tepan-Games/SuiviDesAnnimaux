@@ -32,7 +32,7 @@ Côté structure (jeton de l'appareil, paramètre `o`) :
   `GET /api/liens/photo?id=…&m=…`.
 
 Côté personne (`Authorization: Bearer <jeton du lien>`, sans compte) :
-- `GET /api/suivi` → `{reference, kind, organisation{name, kind, email, phone, address}, animal{ref, name, species}, card,
+- `GET /api/suivi` (`?lu=0` : sans marquer les réponses comme lues) → `{reference, kind, organisation{name, kind, email, phone, address}, animal{ref, name, species}, card,
   requests, interval_days, created_at, ends_at, closed_at, open, days_left (null = sans fin, 0 = terminé), status
   (« Suivi en cours : encore 45 jours… »), messages}` ;
 - `POST /api/suivi/message` (kind `nouvelle`/`question`/`pesee`, body, weight_kg) ; `POST /api/suivi/photo?texte=…`
