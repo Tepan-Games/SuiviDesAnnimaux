@@ -1,4 +1,4 @@
-<?php /** @var array $organisation @var array $links @var bool $canWrite @var ?array $created @var array $errors @var array $values */
+<?php /** @var array $organisation @var array $links @var bool $canWrite @var array $kinds @var ?array $created @var array $errors @var array $values */
 $o = (int)$organisation['id'];
 ?>
 <section class="page">
@@ -51,7 +51,7 @@ $o = (int)$organisation['id'];
                     <?php if ($errors): ?><div class="message error"><?= e(implode(' ', $errors)) ?></div><?php endif ?>
                     <label>L’animal part</label>
                     <div class="choix">
-                        <?php foreach (LINK_KINDS as $key => [$label]): ?>
+                        <?php foreach ($kinds as $key): [$label] = LINK_KINDS[$key] ?>
                             <label><input type="radio" name="kind" value="<?= $key ?>" <?= $values['kind'] === $key ? 'checked' : '' ?>> <?= e($label) ?></label>
                         <?php endforeach ?>
                     </div>
@@ -72,6 +72,8 @@ $o = (int)$organisation['id'];
                     <p class="discret petit">Depuis le logiciel, la fiche de l’animal (identification, vaccins, traitements) est jointe au suivi.</p>
                     <div class="actions-formulaire"><button class="bouton" type="submit">Créer le lien et le QR code</button></div>
                 </form>
+            <?php elseif ($kinds === []): ?>
+                <div class="carte"><p class="discret"><?= e(link_kind_refusal($organisation)) ?></p></div>
             <?php endif ?>
         </div>
     </div>

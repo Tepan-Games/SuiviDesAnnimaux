@@ -453,6 +453,20 @@ check($code === 200 && str_contains($body, 'data-qr="http://localhost:8080/suivi
 preg_match('#/suivi\?c=([0-9a-f]{48})#', $body, $m);
 [, $json] = api('GET', '/api/suivi', null, $m[1]);
 check($json['days_left'] === null && $json['ends_at'] === null && $json['kind'] === 'accueil', 'Suivi : famille d’accueil sans date de fin');
+// Types de suivi selon la structure : association = adoption ou famille d'accueil ; élevage ou magasin = cession ou vente ; pension : aucun.
+[$code, $json] = api('POST', "/api/liens?o=$organisationId", ['kind' => 'particulier', 'animal_name' => 'Tom'], $aliceToken);
+[, $list] = api('GET', "/api/liens?o=$organisationId", null, $aliceToken);
+check($code === 403 && $json['error'] === 'type' && $list['kinds'] === ['adoption', 'accueil'], 'Suivi : association, adoption ou famille d’accueil seulement');
+q("UPDATE organisations SET kind = 'Élevage' WHERE id = ?", [$organisationId]);
+[$code] = api('POST', "/api/liens?o=$organisationId", ['kind' => 'adoption', 'animal_name' => 'Tom'], $aliceToken);
+[$code2, $json2] = api('POST', "/api/liens?o=$organisationId", ['kind' => 'particulier', 'animal_name' => 'Tom'], $aliceToken);
+check($code === 403 && $code2 === 200 && str_contains($json2['url'], '/suivi?c='), 'Suivi : élevage, cession ou vente seulement');
+q("UPDATE organisations SET kind = 'Pension' WHERE id = ?", [$organisationId]);
+[$code, $body] = http('a', "/compte/suivis?o=$organisationId");
+[$code2] = api('POST', "/api/liens?o=$organisationId", ['kind' => 'adoption', 'animal_name' => 'Tom'], $aliceToken);
+check($code === 200 && str_contains($body, 'Une pension garde les animaux') && !str_contains($body, 'Nouveau suivi') && $code2 === 403,
+    'Suivi : pension, pas de suivi par lien');
+q("UPDATE organisations SET kind = 'Association' WHERE id = ?", [$organisationId]);
 [$code] = api('POST', "/api/liens/fermer?o=$organisationId&id=$linkId", null, $aliceToken);
 [$code2, $json] = api('POST', '/api/suivi/message', ['body' => 'Encore là'], $linkToken);
 [$code3, $json3] = api('GET', '/api/suivi', null, $linkToken);

@@ -26,6 +26,9 @@ Côté structure (jeton de l'appareil, paramètre `o`) :
 - `POST /api/liens` (JSON : kind `adoption`/`accueil`/`particulier`, animal_name, species, animal_ref = SyncId,
   recipient_name, recipient_email, months 3/6/12/0, requests [`nouvelles`,`photo`,`pesee`], interval_days, card {…})
   → `{link, reference, url}` (l'adresse contient le jeton : donnée une seule fois, à mettre dans le QR code) ;
+  types permis selon la structure (`organisation_link_kinds`, aussi rendus par `GET /api/liens` dans `kinds`) : association
+  `adoption`/`accueil`, élevage et magasin `particulier` (cession ou vente), pension, famille d'accueil et autres : aucun
+  (403 `type` avec l'explication) ;
 - `GET /api/liens/messages?id=…` → `{link, messages:[{id, author famille/structure, author_name, kind, body, weight_kg,
   photo (adresse), created_at, read}]}` (les envois deviennent lus) ;
 - `POST /api/liens/repondre?id=…` (body), `POST /api/liens/fiche?id=…` (card), `POST /api/liens/fermer?id=…`,

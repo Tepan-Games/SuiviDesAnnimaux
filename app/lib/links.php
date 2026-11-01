@@ -9,8 +9,37 @@ declare(strict_types=1);
 const LINK_KINDS = [
     'adoption' => ['Adoption', 'l’adoptant'],
     'accueil' => ['Famille d’accueil', 'la famille d’accueil'],
-    'particulier' => ['Particulier', 'la personne'],
+    'particulier' => ['Cession ou vente', 'la personne'],
 ];
+
+/**
+ * Suivis que chaque type de structure peut créer (règle validée le 01/11/2026) : l'adoption et le placement en famille
+ * d'accueil sont réservés aux associations et refuges ; élevages et magasins cèdent ou vendent ; une pension ne fait ni
+ * l'un ni l'autre, et une famille d'accueil prépare l'adoption de ses animaux confiés avec l'association, qui crée le suivi.
+ */
+const LINK_KINDS_BY_ORGANISATION = [
+    'Association' => ['adoption', 'accueil'],
+    'Élevage' => ['particulier'],
+    'Magasin' => ['particulier'],
+];
+
+/** Types de suivi que la structure peut créer (vide : aucun). */
+function organisation_link_kinds(array $organisation): array
+{
+    return LINK_KINDS_BY_ORGANISATION[$organisation['kind'] ?? ''] ?? [];
+}
+
+/** Explication quand la structure ne peut pas créer ce suivi. */
+function link_kind_refusal(array $organisation): string
+{
+    return match ($organisation['kind'] ?? '') {
+        'Pension' => 'Une pension garde les animaux sans les faire adopter ni les céder : pas de suivi par lien.',
+        'Famille d’accueil' => 'L’adoption d’un animal confié est préparée avec l’association, qui crée le lien de suivi.',
+        'Association' => 'Une association propose l’adoption ou le placement en famille d’accueil.',
+        'Élevage', 'Magasin' => 'Un élevage ou un magasin cède ou vend l’animal : choisissez « Cession ou vente ».',
+        default => 'Ce type de structure ne crée pas de suivi par lien.',
+    };
+}
 
 /** Ce que la personne peut envoyer ; « reponse » est réservé à la structure. */
 const LINK_MESSAGE_KINDS = ['nouvelle' => 'Nouvelles', 'question' => 'Question', 'pesee' => 'Pesée', 'photo' => 'Photo'];
@@ -82,7 +111,10 @@ function normalize_link_card(mixed $card): ?string
  */
 function create_animal_link(array $organisation, array $user, array $data): array
 {
-    $kind = isset(LINK_KINDS[$data['kind'] ?? '']) ? $data['kind'] : 'adoption';
+    $kind = (string)($data['kind'] ?? '');
+    if (!in_array($kind, organisation_link_kinds($organisation), true)) {
+        throw new InvalidArgumentException(link_kind_refusal($organisation));
+    }
     $months = (int)($data['months'] ?? 3);
     if (!array_key_exists($months, LINK_DURATIONS)) {
         $months = 3;

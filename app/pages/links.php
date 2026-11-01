@@ -46,21 +46,25 @@ function page_links(): void
     $user = require_login();
     $organisation = links_organisation($user);
     $id = (int)$organisation['id'];
-    $canWrite = can_follow_animals($organisation['roles']);
+    $kinds = organisation_link_kinds($organisation);
+    $canWrite = can_follow_animals($organisation['roles']) && $kinds !== [];
     $created = null;
     $errors = [];
-    $values = ['kind' => 'adoption', 'animal_name' => '', 'species' => '', 'recipient_name' => '', 'recipient_email' => '', 'months' => '3', 'requests' => ['nouvelles', 'photo']];
+    $values = ['kind' => $kinds[0] ?? '', 'animal_name' => '', 'species' => '', 'recipient_name' => '', 'recipient_email' => '', 'months' => '3', 'requests' => ['nouvelles', 'photo']];
     if (is_post()) {
         csrf_check();
         if (!$canWrite) {
             http_response_code(403);
-            exit('Vos rôles ne permettent pas de créer un suivi.');
+            exit($kinds === [] ? link_kind_refusal($organisation) : 'Vos rôles ne permettent pas de créer un suivi.');
         }
         $values = [
             'kind' => input('kind'), 'animal_name' => input('animal_name'), 'species' => input('species'),
             'recipient_name' => input('recipient_name'), 'recipient_email' => input('recipient_email'), 'months' => input('months'),
             'requests' => array_values(array_filter((array)($_POST['requests'] ?? []), 'is_string')),
         ];
+        if (!in_array($values['kind'], $kinds, true)) {
+            $errors[] = link_kind_refusal($organisation);
+        }
         if (mb_strlen($values['animal_name']) < 1) {
             $errors[] = 'Indiquez le nom de l’animal.';
         }
@@ -74,7 +78,7 @@ function page_links(): void
         }
     }
     view('account/links', [
-        'organisation' => $organisation, 'links' => organisation_links($id), 'canWrite' => $canWrite,
+        'organisation' => $organisation, 'links' => organisation_links($id), 'canWrite' => $canWrite, 'kinds' => $kinds,
         'created' => $created, 'errors' => $errors, 'values' => $values,
     ], 'Suivis des animaux confiés');
 }
@@ -195,10 +199,14 @@ function page_api_links(): void
     $device = api_device();
     if ($method === 'GET') {
         $organisation = api_links_organisation($device, false);
-        api_json(['links' => array_map('api_link_summary', organisation_links((int)$organisation['id']))]);
+        api_json(['links' => array_map('api_link_summary', organisation_links((int)$organisation['id'])),
+            'kinds' => organisation_link_kinds($organisation)]);
     }
     api_require_method('POST');
     $organisation = api_links_organisation($device, true);
+    if (!in_array(api_input('kind'), organisation_link_kinds($organisation), true)) {
+        api_error(403, 'type', link_kind_refusal($organisation));
+    }
     if (api_input('animal_name') === '') {
         api_error(400, 'incomplet', 'Indiquez le nom de l’animal.');
     }
