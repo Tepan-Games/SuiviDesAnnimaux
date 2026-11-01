@@ -27,8 +27,8 @@
             </div>
             <div class="carte">
                 <h2>Comment ça marche</h2>
-                <p class="petit">Les espaces <strong>Personnel</strong> se synchronisent avec votre propre cloud (OneDrive, Google Drive, NAS).
-                    Les structures (association, pension, élevage, famille d’accueil) se synchronisent par le site : chaque
+                <p class="petit">Les espaces <strong>Personnel</strong> et <strong>Famille d’accueil</strong> se synchronisent avec votre propre cloud (OneDrive, Google Drive, NAS).
+                    Les structures (association, pension, élevage, magasin) se synchronisent par le site : chaque
                     appareil se connecte une fois, avec votre adresse e-mail et votre mot de passe, ou avec un code.</p>
                 <p class="discret petit">Un appareil perdu ou prêté ? Déconnectez-le ci-dessous : il ne pourra plus rien lire ni envoyer.</p>
             </div>

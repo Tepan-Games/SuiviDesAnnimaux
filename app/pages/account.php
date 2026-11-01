@@ -15,7 +15,8 @@ function page_register(): void
         $values = ['name' => input('name'), 'email' => mb_strtolower(input('email')), 'kind' => input('kind'), 'organisation' => input('organisation'),
             'newsletter' => !empty($_POST['newsletter'])];
         $errors = validate_registration($values['name'], $values['email'], (string)($_POST['password'] ?? ''));
-        $structure = $values['kind'] !== 'Particulier';
+        // Particulier et famille d'accueil : compte gratuit, sans structure (la famille d'accueil est invitée par l'association).
+        $structure = !in_array($values['kind'], FREE_KINDS, true);
         if ($structure && mb_strlen($values['organisation']) < 2) {
             $errors[] = 'Indiquez le nom de votre structure.';
         }

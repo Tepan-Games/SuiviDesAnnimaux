@@ -1,5 +1,5 @@
 <?php /** @var array $errors @var array $values */
-$kinds = array_merge(['Particulier'], ORGANISATION_KINDS);
+$kinds = array_merge(FREE_KINDS, ORGANISATION_KINDS);
 ?>
 <div class="etroit">
     <form class="formulaire" method="post" action="/inscription">
@@ -10,10 +10,10 @@ $kinds = array_merge(['Particulier'], ORGANISATION_KINDS);
         <label>Vous êtes</label>
         <div class="choix">
             <?php foreach ($kinds as $kind): ?>
-                <label><input type="radio" name="kind" value="<?= e($kind) ?>" <?= $values['kind'] === $kind ? 'checked' : '' ?>> <?= e($kind === 'Particulier' ? 'Un particulier' : $kind) ?></label>
+                <label><input type="radio" name="kind" value="<?= e($kind) ?>" <?= $values['kind'] === $kind ? 'checked' : '' ?>> <?= e(match ($kind) { 'Particulier' => 'Un particulier', 'Famille d’accueil' => 'Une famille d’accueil', default => $kind }) ?></label>
             <?php endforeach ?>
         </div>
-        <label for="organisation">Nom de la structure <span class="discret petit">(sauf particulier)</span></label>
+        <label for="organisation">Nom de la structure <span class="discret petit">(sauf particulier et famille d’accueil)</span></label>
         <input type="text" id="organisation" name="organisation" value="<?= e($values['organisation']) ?>" placeholder="Ex. : Les Pattes de Valensole">
         <label for="name">Votre nom</label>
         <input type="text" id="name" name="name" required autocomplete="name" value="<?= e($values['name']) ?>">

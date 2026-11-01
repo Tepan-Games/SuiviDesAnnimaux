@@ -116,6 +116,23 @@ $token = csrf('visiteur', '/inscription');
 [, $body] = http('visiteur', '/inscription', ['csrf' => $token, 'kind' => 'Particulier', 'name' => 'Autre', 'email' => 'alice@test.fr', 'password' => 'motdepasse-solide', 'cgu' => '1']);
 check(str_contains($body, 'Un compte existe déjà'), 'Adresse déjà utilisée refusée');
 
+// Types (règle du 01/11/2026) : particulier et famille d'accueil gratuits, sans structure ; « Magasin » est une structure.
+[, $body] = http('visiteur', '/inscription');
+check(str_contains($body, 'value="Magasin"') && str_contains($body, 'Une famille d’accueil')
+      && !in_array('Famille d’accueil', ORGANISATION_KINDS, true), 'Inscription : magasin proposé, famille d’accueil gratuite');
+$token = csrf('fa', '/inscription');
+http('fa', '/inscription', ['csrf' => $token, 'kind' => 'Famille d’accueil', 'organisation' => 'Ma maison', 'name' => 'Fanny Accueil',
+    'email' => 'fanny@test.fr', 'password' => 'motdepasse-solide', 'cgu' => '1']);
+$token = csrf('magasin', '/inscription');
+http('magasin', '/inscription', ['csrf' => $token, 'kind' => 'Magasin', 'organisation' => 'Animalerie Test', 'name' => 'Marc Magasin',
+    'email' => 'marc@test.fr', 'password' => 'motdepasse-solide', 'cgu' => '1']);
+check(q("SELECT COUNT(*) FROM users WHERE email = 'fanny@test.fr'")->fetchColumn() == 1
+      && q("SELECT COUNT(*) FROM organisations WHERE name = 'Ma maison'")->fetchColumn() == 0
+      && q("SELECT kind FROM organisations WHERE name = 'Animalerie Test'")->fetchColumn() === 'Magasin',
+    'Famille d’accueil sans structure, magasin créé comme structure');
+[, $body] = http('visiteur', '/');
+check(!str_contains($body, 'Fanny'), 'Visiteur toujours anonyme');
+
 // ===== Invitation d'un bénévole, inscription par le lien, acceptation =====
 $token = csrf('a', "/compte/structure?id=$organisationId");
 [$code, $body] = http('a', "/compte/structure?id=$organisationId", ['csrf' => $token, 'action' => 'inviter', 'email' => 'bob@test.fr', 'roles' => ['soins', 'tresorier']]);
