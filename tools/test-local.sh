@@ -27,12 +27,13 @@ return [
     'download_pc' => 'https://github.com/Tepan-Games/SuiviAnimaux-versions/releases/latest',
     'download_android' => 'https://play.google.com/store/apps/details?id=com.tepangames.suivianimaux',
     'sync' => ['max_bytes' => 1024 * 1024],
+    'geocode' => ['mode' => 'test'],
     'debug' => true,
 ];
 PHP
 export SUIVI_SITE_CONFIG="$out/config.test.php"
 rm -f "$root/storage/mails.log"
-rm -rf "$root/storage/sync"
+rm -rf "$root/storage/sync" "$root/storage/suivis"
 php -S localhost:8080 -t "$root/www" "$root/www/index.php" >"$out/php-server.log" 2>&1 &
 server=$!
 sleep 1

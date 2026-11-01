@@ -21,6 +21,12 @@ assistance, administration. Logiciel Windows : dépôt `C:\Users\arcuc\Projects\
   (assistance, contact, « Répondre » de tous les e-mails), `newsletter.from` = newsletter@. Lettre d'information :
   `app/lib/newsletter.php`, `app/pages/newsletter.php` (administration `/admin/lettres`, `/desinscription`) ; seulement
   aux comptes abonnés (`users.newsletter_at`) à l'adresse confirmée, envoi par lots, jeton de désinscription par envoi.
+- Suivis des animaux confiés (`app/lib/links.php`, `app/pages/links.php`, `docs/suivis-animaux-confies.md`) : lien
+  `/suivi?c=<jeton>` + QR code remis à l'adoptant / la famille d'accueil (sans compte), nouvelles vers la structure, API `/api/liens/…`
+  (structure) et `/api/suivi/…` (personne).
+- Annuaire et questions (`app/lib/directory.php`, `app/pages/directory.php`) : choix séparés `directory_listed` / `accepts_questions`
+  des structures, position par la Base Adresse Nationale (`geocode.mode` : `ban`, `off`, `test`), API publique `/api/annuaire`,
+  `/api/question`.
 - Rôles (`ROLES`) identiques au logiciel (`SpaceRoles` : responsable, soins, accueil, tresorier, consultation).
 
 ## Règles

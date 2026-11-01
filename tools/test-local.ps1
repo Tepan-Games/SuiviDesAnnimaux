@@ -35,6 +35,7 @@ return [
     'download_pc' => 'https://github.com/Tepan-Games/SuiviAnimaux-versions/releases/latest',
     'download_android' => 'https://play.google.com/store/apps/details?id=com.tepangames.suivianimaux',
     'sync' => ['max_bytes' => 1024 * 1024],
+    'geocode' => ['mode' => 'test'],
     'debug' => true,
 ];
 "@ | ForEach-Object { [IO.File]::WriteAllText("$out\config.test.php", $_, (New-Object Text.UTF8Encoding $false)) }

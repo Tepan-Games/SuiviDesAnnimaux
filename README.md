@@ -71,6 +71,20 @@ dans *Mon compte › Appareils*, avec QR code) puis lisent et écrivent les fich
 structure par l'API `/api/…` (voir `docs/synchronisation-par-le-site.md`). Les fichiers sont dans
 `storage/sync/<id structure>/`, jamais servis par le web.
 
+## Suivis des animaux confiés
+
+Une structure remet à l'adoptant, à la famille d'accueil ou au particulier un lien à identifiant unique, avec QR code
+(*Mon compte › structure › Suivis des animaux confiés*, ou depuis le logiciel). Sans compte, la personne retrouve la fiche
+de l'animal et le temps de suivi restant, envoie nouvelles, pesées, photos et questions ; tout arrive sur le compte de la
+structure, qui répond. Voir `docs/suivis-animaux-confies.md`.
+
+## Annuaire et questions
+
+Chaque structure choisit, séparément, d'apparaître dans l'annuaire (`/annuaire`, page publique `/structure?id=…`, API
+`/api/annuaire?lat=…&lon=…` lue par la recherche « À proximité » du logiciel et de l'application) et d'accepter les questions
+du public (`/api/question`, réponses depuis *Mon compte › structure › Questions reçues*, envoyées par e-mail). Position de
+l'adresse : Base Adresse Nationale (réglage `geocode.mode`).
+
 ## À venir
 
 - Interface en ligne des fiches des animaux (lecture et saisie depuis un navigateur).

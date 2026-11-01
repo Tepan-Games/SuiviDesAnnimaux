@@ -66,7 +66,18 @@ function page_organisation(): void
             case 'infos':
                 q('UPDATE organisations SET name = ?, contact_email = ?, phone = ?, address = ?, siret = ? WHERE id = ?',
                     [input('name') ?: $organisation['name'], input('contact_email'), input('phone'), input('address'), input('siret'), $id]);
+                // Nouvelle adresse : nouvelle position pour la recherche « À proximité ».
+                if (input('address') !== $organisation['address']) {
+                    $error = save_directory_settings(['latitude' => null] + $organisation, ['address' => input('address')] + $organisation);
+                }
                 flash('Informations enregistrées.');
+                break;
+            case 'annuaire':
+                $error = save_directory_settings($organisation, [
+                    'directory_listed' => input('directory_listed') === '1', 'accepts_questions' => input('accepts_questions') === '1',
+                    'description' => input('description'), 'species' => input('species'), 'website' => input('website'),
+                ]);
+                flash('Annuaire et questions enregistrés.');
                 break;
         }
         if ($error) {

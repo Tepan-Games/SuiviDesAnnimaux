@@ -378,6 +378,162 @@ check($code === 403 && $json['error'] === 'licence' && str_contains($json['messa
 check($code === 200, 'API : lecture permise, licence suspendue');
 q("UPDATE licences SET status = 'active' WHERE organisation_id = ?", [$organisationId]);
 
+// ===== Suivis des animaux confiés : lien à identifiant unique, QR code, nouvelles, réponses =====
+$card = ['species' => 'Chat', 'sex' => 'Femelle', 'birthDate' => '2026-03-01', 'chip' => '250269812345678',
+    'vaccines' => [['date' => '2026-06-01', 'name' => 'Typhus coryza', 'next' => '2027-06-01']], 'advice' => ['Transition alimentaire sur 7 jours']];
+[$code, $json] = api('POST', "/api/liens?o=$organisationId", ['kind' => 'adoption', 'animal_name' => 'Mimi', 'species' => 'Chat',
+    'animal_ref' => 'animal:1234', 'recipient_name' => 'Claire Adoptante', 'recipient_email' => 'claire@test.fr', 'months' => 3,
+    'requests' => ['nouvelles', 'photo'], 'card' => $card], $aliceToken);
+check($code === 200 && preg_match('/^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/', $json['reference']) && str_contains($json['url'], '/suivi?c='), 'Suivi : création par l’API');
+$linkId = $json['link']['id'];
+$linkToken = substr($json['url'], strpos($json['url'], 'c=') + 2);
+check(q('SELECT token_hash FROM animal_links WHERE id = ?', [$linkId])->fetchColumn() === hash('sha256', $linkToken), 'Suivi : seule l’empreinte du jeton est gardée');
+check(last_mail_link('/suivi\?c=') === $json['url'], 'Suivi : lien envoyé par e-mail à l’adoptant');
+[$code] = api('POST', "/api/liens?o=$organisationId", ['animal_name' => 'Pirate'], $bobToken);
+check($code === 404, 'Suivi : création refusée à un non-membre');
+[$code, $json] = api('GET', "/api/liens/messages?o=$organisationId&id=$linkId", null, $bobToken);
+check($code === 404, 'Suivi : échanges refusés à un non-membre');
+
+// La personne, sans compte : API (logiciel, application) et page web
+[$code, $json] = api('GET', '/api/suivi', null, $linkToken);
+check($code === 200 && $json['animal']['name'] === 'Mimi' && $json['card']['chip'] === '250269812345678' && $json['open'] === true
+    && $json['days_left'] >= 89 && $json['days_left'] <= 93 && str_contains($json['status'], 'encore 3 mois') && $json['organisation']['name'] === 'Asso Test', 'Suivi : fiche et jours restants pour la personne');
+[$code, $json] = api('GET', '/api/suivi', null, str_repeat('0', 48));
+check($code === 401 && $json['error'] === 'lien', 'Suivi : jeton inconnu refusé');
+[$code, $json] = api('POST', '/api/suivi/message', ['kind' => 'pesee', 'body' => 'Elle mange bien', 'weight_kg' => '3,4'], $linkToken);
+check($code === 200, 'Suivi : pesée envoyée par l’API');
+$png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+[$code, $json] = api('POST', '/api/suivi/photo?texte=' . rawurlencode('Sur le canapé'), $png, $linkToken);
+check($code === 200, 'Suivi : photo envoyée par l’API');
+$photoId = $json['id'];
+[$code, $json] = api('POST', '/api/suivi/photo', '<?php echo 1;', $linkToken);
+check($code === 400, 'Suivi : fichier qui n’est pas une image refusé');
+[$code, $body] = http('visiteur', "/suivi?c=$linkToken");
+check($code === 200 && str_contains($body, 'Mimi') && str_contains($body, 'Suivi en cours : encore 3 mois') && str_contains($body, '250269812345678')
+    && str_contains($body, 'Transition alimentaire') && str_contains($body, '01/03/2026'), 'Suivi : page de la personne (fiche, temps restant, dates)');
+$token = csrf('visiteur', "/suivi?c=$linkToken");
+[$code, , $location] = http('visiteur', "/suivi?c=$linkToken", ['csrf' => $token, 'kind' => 'question', 'body' => 'Quelle litière conseillez-vous ?']);
+check($code === 302 && str_contains((string)@file_get_contents(STORAGE_DIR . '/mails.log'), 'Question : Mimi'), 'Suivi : question par la page, structure prévenue');
+[$code] = http('visiteur', "/suivi?c=$linkToken&photo=$photoId");
+check($code === 200, 'Suivi : la personne voit sa photo');
+[$code] = http('visiteur', '/suivi?c=' . str_repeat('a', 48));
+check($code === 404, 'Suivi : page d’un lien inconnu');
+
+// La structure : liste, échanges (non lus), réponse, photo, fiche, fin
+[$code, $json] = api('GET', "/api/liens?o=$organisationId", null, $aliceToken);
+check($code === 200 && count($json['links']) === 1 && $json['links'][0]['unread'] === 3 && $json['links'][0]['opened'] === true, 'Suivi : liste avec 3 envois non lus');
+[$code, $json] = api('GET', "/api/liens/messages?o=$organisationId&id=$linkId", null, $aliceToken);
+check($code === 200 && count($json['messages']) === 3 && $json['messages'][0]['weight_kg'] === 3.4 && $json['messages'][1]['photo'] !== null, 'Suivi : échanges reçus par le logiciel');
+[$code, $raw] = api('GET', $json['messages'][1]['photo'], null, $aliceToken);
+check($code === 200 && $raw === $png, 'Suivi : photo reçue par le logiciel');
+[, $json] = api('GET', "/api/liens?o=$organisationId", null, $aliceToken);
+check($json['links'][0]['unread'] === 0, 'Suivi : envois lus');
+[$code] = api('POST', "/api/liens/repondre?o=$organisationId&id=$linkId", ['body' => 'Une litière végétale, sans parfum.'], $aliceToken);
+check($code === 200 && str_contains((string)@file_get_contents(STORAGE_DIR . '/mails.log'), 'Une litière végétale'), 'Suivi : réponse de la structure, personne prévenue');
+[, $json] = api('GET', '/api/suivi?lu=0', null, $linkToken);
+[, $json2] = api('GET', '/api/suivi?lu=0', null, $linkToken);
+check(end($json['messages'])['author'] === 'structure' && end($json2['messages'])['read'] === false, 'Suivi : relecture en arrière-plan sans marquer la réponse comme lue');
+[$code] = api('POST', "/api/liens/fiche?o=$organisationId&id=$linkId", ['card' => $card + ['notes' => 'Rappel vaccin en juin']], $aliceToken);
+[, $json] = api('GET', '/api/suivi', null, $linkToken);
+check($code === 200 && $json['card']['notes'] === 'Rappel vaccin en juin' && end($json['messages'])['author'] === 'structure', 'Suivi : fiche mise à jour et réponse vues par la personne');
+[$code, $body] = http('a', "/compte/suivis?o=$organisationId");
+check($code === 200 && str_contains($body, 'Mimi') && str_contains($body, 'Claire Adoptante'), 'Suivi : liste sur le site');
+[$code, $body] = http('a', "/compte/suivi?o=$organisationId&id=$linkId");
+check($code === 200 && str_contains($body, 'Quelle litière') && str_contains($body, '3,4 kg'), 'Suivi : échanges sur le site');
+[$code] = http('a', "/compte/suivi/photo?o=$organisationId&id=$linkId&m=$photoId");
+check($code === 200, 'Suivi : photo sur le site');
+[$code] = http('b', "/compte/suivi?o=$organisationId&id=$linkId");
+check($code === 404, 'Suivi : page refusée à un non-membre');
+
+// Création depuis le site (famille d'accueil, sans fin), puis fin d'un suivi
+$token = csrf('a', "/compte/suivis?o=$organisationId");
+[$code, $body] = http('a', "/compte/suivis?o=$organisationId", ['csrf' => $token, 'kind' => 'accueil', 'animal_name' => 'Rex', 'species' => 'Chien',
+    'recipient_name' => 'Famille Martin', 'recipient_email' => '', 'months' => '0', 'requests' => ['nouvelles']]);
+check($code === 200 && str_contains($body, 'data-qr="http://localhost:8080/suivi?c=') && str_contains($body, 'Suivi de Rex créé'), 'Suivi : création sur le site avec QR code');
+preg_match('#/suivi\?c=([0-9a-f]{48})#', $body, $m);
+[, $json] = api('GET', '/api/suivi', null, $m[1]);
+check($json['days_left'] === null && $json['ends_at'] === null && $json['kind'] === 'accueil', 'Suivi : famille d’accueil sans date de fin');
+// Types de suivi selon la structure : association = adoption ou famille d'accueil ; élevage ou magasin = cession ou vente ; pension : aucun.
+[$code, $json] = api('POST', "/api/liens?o=$organisationId", ['kind' => 'particulier', 'animal_name' => 'Tom'], $aliceToken);
+[, $list] = api('GET', "/api/liens?o=$organisationId", null, $aliceToken);
+check($code === 403 && $json['error'] === 'type' && $list['kinds'] === ['adoption', 'accueil'], 'Suivi : association, adoption ou famille d’accueil seulement');
+q("UPDATE organisations SET kind = 'Élevage' WHERE id = ?", [$organisationId]);
+[$code] = api('POST', "/api/liens?o=$organisationId", ['kind' => 'adoption', 'animal_name' => 'Tom'], $aliceToken);
+[$code2, $json2] = api('POST', "/api/liens?o=$organisationId", ['kind' => 'particulier', 'animal_name' => 'Tom'], $aliceToken);
+check($code === 403 && $code2 === 200 && str_contains($json2['url'], '/suivi?c='), 'Suivi : élevage, cession ou vente seulement');
+q("UPDATE organisations SET kind = 'Pension' WHERE id = ?", [$organisationId]);
+[$code, $body] = http('a', "/compte/suivis?o=$organisationId");
+[$code2] = api('POST', "/api/liens?o=$organisationId", ['kind' => 'adoption', 'animal_name' => 'Tom'], $aliceToken);
+check($code === 200 && str_contains($body, 'Une pension garde les animaux') && !str_contains($body, 'Nouveau suivi') && $code2 === 403,
+    'Suivi : pension, pas de suivi par lien');
+q("UPDATE organisations SET kind = 'Association' WHERE id = ?", [$organisationId]);
+// Ancienne structure « Famille d’accueil » (particulier) : jamais dans l'annuaire ni ouverte aux questions.
+q("UPDATE organisations SET kind = 'Famille d’accueil', directory_listed = 1, accepts_questions = 1, latitude = 43.836699, longitude = 4.360054 WHERE id = ?", [$organisationId]);
+[, $dir] = api('GET', '/api/annuaire?lat=43.8367&lon=4.3601&km=20');
+[$code] = http('visiteur', "/structure?id=$organisationId");
+check($dir['organisations'] === [] && $code === 404, 'Annuaire : famille d’accueil (particulier) jamais publiée');
+q("UPDATE organisations SET kind = 'Association', directory_listed = 0, accepts_questions = 0, latitude = NULL, longitude = NULL WHERE id = ?", [$organisationId]);
+[$code] = api('POST', "/api/liens/fermer?o=$organisationId&id=$linkId", null, $aliceToken);
+[$code2, $json] = api('POST', '/api/suivi/message', ['body' => 'Encore là'], $linkToken);
+[$code3, $json3] = api('GET', '/api/suivi', null, $linkToken);
+check($code === 200 && $code2 === 403 && $json['error'] === 'termine' && $code3 === 200 && $json3['open'] === false && $json3['days_left'] === 0
+    && count($json3['messages']) === 4, 'Suivi : terminé, historique encore lisible, plus d’envoi');
+
+// ===== Annuaire des structures et questions (deux choix séparés, désactivés par défaut) =====
+[$code, $json] = api('GET', '/api/annuaire?lat=43.8367&lon=4.36');
+[$code2] = http('visiteur', "/structure?id=$organisationId");
+check($code === 200 && $json['organisations'] === [] && $code2 === 404, 'Annuaire : structure absente tant qu’elle ne l’a pas choisi');
+[$code, $json] = api('GET', '/api/annuaire?lat=abc&lon=4');
+check($code === 400 && $json['error'] === 'position', 'Annuaire : position non valable refusée');
+$token = csrf('a', "/compte/structure?id=$organisationId");
+http('a', "/compte/structure?id=$organisationId", ['csrf' => $token, 'action' => 'infos', 'name' => 'Asso Test', 'contact_email' => 'contact@asso-test.fr',
+    'phone' => '04 66 00 00 00', 'address' => '12 rue de la République, 30000 Nîmes', 'siret' => '']);
+http('a', "/compte/structure?id=$organisationId", ['csrf' => $token, 'action' => 'annuaire', 'directory_listed' => '1',
+    'description' => 'Refuge pour chats et chiens.', 'species' => 'Chats, chiens', 'website' => 'asso-test.fr']);
+$org = q('SELECT * FROM organisations WHERE id = ?', [$organisationId])->fetch();
+check((int)$org['directory_listed'] === 1 && (int)$org['accepts_questions'] === 0 && abs((float)$org['latitude'] - 43.836699) < 0.0001
+    && $org['city'] === 'Nîmes' && $org['website'] === 'https://asso-test.fr', 'Annuaire : inscription et adresse située');
+[$code, $json] = api('GET', '/api/annuaire?lat=43.85&lon=4.35&km=20');
+[, $far] = api('GET', '/api/annuaire?lat=48.8566&lon=2.3522');
+check($code === 200 && count($json['organisations']) === 1 && $json['organisations'][0]['name'] === 'Asso Test' && $json['organisations'][0]['distance_km'] < 3
+    && $json['organisations'][0]['accepts_questions'] === false && $json['organisations'][0]['phone'] === '04 66 00 00 00' && $far['organisations'] === [],
+    'Annuaire : structure trouvée autour de Nîmes, pas autour de Paris');
+[$code, $body] = http('visiteur', "/structure?id=$organisationId");
+check($code === 200 && str_contains($body, 'Refuge pour chats') && !str_contains($body, 'Poser une question'), 'Annuaire : page publique sans questions');
+[$code, $json] = api('POST', '/api/question', ['organisation' => (string)$organisationId, 'name' => 'Claire', 'email' => 'claire@test.fr', 'body' => 'Adoptez-vous des chats seniors ?']);
+check($code === 400 && str_contains($json['message'], 'ne reçoit pas'), 'Questions : refusées tant que la structure ne les accepte pas');
+http('a', "/compte/structure?id=$organisationId", ['csrf' => $token, 'action' => 'annuaire', 'directory_listed' => '1', 'accepts_questions' => '1',
+    'description' => 'Refuge pour chats et chiens.', 'species' => 'Chats, chiens', 'website' => 'https://asso-test.fr']);
+// Identifiant envoyé comme nombre JSON (logiciel et application).
+[$code, $json] = api('POST', '/api/question', ['organisation' => $organisationId, 'name' => 'Claire', 'email' => 'claire@test.fr', 'body' => 'Adoptez-vous des chats seniors ?']);
+$log = (string)@file_get_contents(STORAGE_DIR . '/mails.log');
+check($code === 200 && str_contains($json['url'], '/question?c=') && str_contains($log, "À : contact@asso-test.fr\nRépondre à : claire@test.fr")
+    && str_contains($log, 'Votre question à Asso Test'), 'Questions : par l’API, structure prévenue (Répondre = la personne), accusé de réception');
+$questionUrl = $json['url'];
+[$code, $json] = api('POST', '/api/question', ['organisation' => (string)$organisationId, 'name' => 'X', 'email' => 'pas-une-adresse', 'body' => 'Bonjour bonjour']);
+check($code === 400, 'Questions : adresse e-mail non valable refusée');
+$token2 = csrf('visiteur', "/structure?id=$organisationId");
+[$code, $body] = http('visiteur', "/structure?id=$organisationId", ['csrf' => $token2, 'name' => 'Paul', 'email' => 'paul@test.fr', 'body' => 'Quels sont vos horaires de visite ?']);
+check($code === 200 && str_contains($body, 'Question envoyée'), 'Questions : par la page publique');
+[$code, $body] = http('a', "/compte/questions?o=$organisationId");
+check($code === 200 && str_contains($body, 'chats seniors') && str_contains($body, 'horaires de visite'), 'Questions : liste de la structure');
+$questionId = (int)q("SELECT id FROM organisation_questions WHERE email = 'claire@test.fr'")->fetchColumn();
+$token = csrf('a', "/compte/questions?o=$organisationId");
+http('a', "/compte/questions?o=$organisationId", ['csrf' => $token, 'question' => (string)$questionId, 'action' => 'repondre', 'answer' => 'Oui, avec plaisir !']);
+[$code, $body] = http('visiteur', str_replace(BASE, '', $questionUrl));
+check($code === 200 && str_contains($body, 'Oui, avec plaisir') && str_contains((string)@file_get_contents(STORAGE_DIR . '/mails.log'), 'Réponse de Asso Test'),
+    'Questions : réponse envoyée par e-mail et visible avec le lien');
+[$code] = http('b', "/compte/questions?o=$organisationId");
+check($code === 404, 'Questions : liste refusée à un non-membre');
+[$code, $body] = http('visiteur', '/annuaire?q=' . rawurlencode('Nîmes'));
+check($code === 200 && str_contains($body, 'Asso Test') && str_contains($body, 'répond aux questions'), 'Annuaire : recherche par commune');
+q('UPDATE organisation_questions SET created_at = ? WHERE 1', [now()]);
+for ($i = 0; $i < 5; $i++) {
+    api('POST', '/api/question', ['organisation' => (string)$organisationId, 'name' => 'Robot', 'email' => "r$i@test.fr", 'body' => 'Question répétée numéro ' . $i]);
+}
+[$code, $json] = api('POST', '/api/question', ['organisation' => (string)$organisationId, 'name' => 'Robot', 'email' => 'r9@test.fr', 'body' => 'Encore une question']);
+check($code === 429 && $json['error'] === 'trop_essais', 'Questions : nombre limité par adresse IP');
+
 // Limite des codes faux
 for ($i = 0; $i < 10; $i++) {
     api('POST', '/api/code', ['code' => 'AAAA-AAAA', 'device' => 'x']);

@@ -5,7 +5,11 @@ $id = (int)$organisation['id'];
     <div class="contenu">
         <div class="titre-page">
             <div><span class="pastille"><?= e($organisation['kind']) ?></span><h1><?= e($organisation['name']) ?></h1></div>
-            <a class="bouton petit secondaire" href="/compte">← Mon compte</a>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <?php if (can_see_links($organisation['roles'])): ?><a class="bouton petit" href="/compte/suivis?o=<?= $id ?>">Suivis des animaux confiés</a><?php endif ?>
+                <?php if (can_see_links($organisation['roles'])): ?><a class="bouton petit secondaire" href="/compte/questions?o=<?= $id ?>">Questions reçues</a><?php endif ?>
+                <a class="bouton petit secondaire" href="/compte">← Mon compte</a>
+            </div>
         </div>
 
         <?php if ($newLink): ?>
@@ -44,6 +48,23 @@ $id = (int)$organisation['id'];
                     <p class="discret petit">Vos rôles : <?= e(role_labels($organisation['roles'])) ?></p>
                 <?php endif ?>
             </div>
+            <?php if ($manage && directory_allowed($organisation)): ?>
+                <form class="carte" method="post" action="/compte/structure?id=<?= $id ?>">
+                    <h3>Annuaire et questions</h3>
+                    <?= csrf_field() ?><input type="hidden" name="action" value="annuaire">
+                    <label class="case"><input type="checkbox" name="directory_listed" value="1" <?= $organisation['directory_listed'] ? 'checked' : '' ?>>
+                        <span><strong>Apparaître dans l’annuaire</strong> — <span class="discret">page publique et recherche « À proximité » du logiciel et de l’application (nom, type, adresse, téléphone, site)</span></span></label>
+                    <label class="case"><input type="checkbox" name="accepts_questions" value="1" <?= $organisation['accepts_questions'] ? 'checked' : '' ?>>
+                        <span><strong>Accepter les questions</strong> — <span class="discret">le public peut vous écrire par le site ; les questions arrivent à l’adresse de contact</span></span></label>
+                    <label for="org-description">Présentation (600 caractères)</label>
+                    <textarea id="org-description" name="description" rows="3" maxlength="600"><?= e($organisation['description']) ?></textarea>
+                    <label for="org-species">Animaux accueillis</label><input type="text" id="org-species" name="species" value="<?= e($organisation['species']) ?>" placeholder="Chats, chiens, lapins…">
+                    <label for="org-website">Site internet</label><input type="text" id="org-website" name="website" value="<?= e($organisation['website']) ?>">
+                    <p class="discret petit"><?= $organisation['latitude'] !== null ? 'Adresse située : ' . e($organisation['city']) . '.' : 'L’adresse (carte Informations) sert à vous situer dans la recherche « À proximité ».' ?></p>
+                    <div class="actions-formulaire"><button class="bouton petit" type="submit">Enregistrer</button>
+                        <?php if ($organisation['directory_listed']): ?><a class="petit" href="/structure?id=<?= $id ?>">Voir la page publique</a><?php endif ?></div>
+                </form>
+            <?php endif ?>
         </div>
 
         <h2 style="margin-top:32px">Membres</h2>

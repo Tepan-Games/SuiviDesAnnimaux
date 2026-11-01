@@ -8,7 +8,7 @@ if (PHP_SAPI === 'cli-server' && is_file(__DIR__ . parse_url($_SERVER['REQUEST_U
 
 // Seul fichier PHP public : tout le code est hors du dossier www (inaccessible depuis le web).
 require __DIR__ . '/../app/bootstrap.php';
-foreach (['public', 'account', 'organisation', 'support', 'admin', 'devices', 'api', 'newsletter'] as $pages) {
+foreach (['public', 'account', 'organisation', 'support', 'admin', 'devices', 'api', 'newsletter', 'links', 'directory'] as $pages) {
     require APP_ROOT . "/pages/$pages.php";
 }
 
@@ -41,6 +41,14 @@ $routes = [
     '/compte/demande' => 'page_ticket',
     '/application' => 'page_online_app',
     '/compte/appareils' => 'page_devices',
+    '/compte/suivis' => 'page_links',
+    '/compte/suivi' => 'page_link',
+    '/compte/suivi/photo' => 'page_link_photo',
+    '/suivi' => 'page_follow',
+    '/annuaire' => 'page_directory',
+    '/structure' => 'page_directory_organisation',
+    '/question' => 'page_question',
+    '/compte/questions' => 'page_questions',
     // Administration
     '/admin' => 'page_admin_dashboard',
     '/admin/clients' => 'page_admin_clients',
@@ -58,6 +66,17 @@ $routes = [
     '/api/structures' => 'page_api_organisations',
     '/api/sync/liste' => 'page_api_sync_list',
     '/api/sync/fichier' => 'page_api_sync_file',
+    '/api/liens' => 'page_api_links',
+    '/api/liens/messages' => 'page_api_link_messages',
+    '/api/liens/repondre' => 'page_api_link_reply',
+    '/api/liens/fiche' => 'page_api_link_card',
+    '/api/liens/fermer' => 'page_api_link_close',
+    '/api/liens/photo' => 'page_api_link_photo',
+    '/api/suivi' => 'page_api_follow',
+    '/api/suivi/message' => 'page_api_follow_message',
+    '/api/suivi/photo' => 'page_api_follow_photo',
+    '/api/annuaire' => 'page_api_directory',
+    '/api/question' => 'page_api_question',
 ];
 
 if (!isset($routes[$path])) {
