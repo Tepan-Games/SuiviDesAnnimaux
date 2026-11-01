@@ -20,6 +20,7 @@ $active = fn(string $prefix) => ($prefix === '/' ? $path === '/' : str_starts_wi
         <nav class="navigation" aria-label="Navigation principale">
             <a href="/fonctionnalites" class="<?= $active('/fonctionnalites') ?>">Fonctionnalités</a>
             <a href="/tarifs" class="<?= $active('/tarifs') ?>">Tarifs</a>
+            <a href="/annuaire" class="<?= $active('/annuaire') ?>">Annuaire</a>
             <a href="/telecharger" class="<?= $active('/telecharger') ?>">Télécharger</a>
             <?php if ($user): ?>
                 <a href="/compte" class="<?= $active('/compte') ?>">Mon compte</a>

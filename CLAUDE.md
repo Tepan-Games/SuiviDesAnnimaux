@@ -24,6 +24,9 @@ assistance, administration. Logiciel Windows : dépôt `C:\Users\arcuc\Projects\
 - Suivis des animaux confiés (`app/lib/links.php`, `app/pages/links.php`, `docs/suivis-animaux-confies.md`) : lien
   `/suivi?c=<jeton>` + QR code remis à l'adoptant / la famille d'accueil (sans compte), nouvelles vers la structure, API `/api/liens/…`
   (structure) et `/api/suivi/…` (personne).
+- Annuaire et questions (`app/lib/directory.php`, `app/pages/directory.php`) : choix séparés `directory_listed` / `accepts_questions`
+  des structures, position par la Base Adresse Nationale (`geocode.mode` : `ban`, `off`, `test`), API publique `/api/annuaire`,
+  `/api/question`.
 - Rôles (`ROLES`) identiques au logiciel (`SpaceRoles` : responsable, soins, accueil, tresorier, consultation).
 
 ## Règles

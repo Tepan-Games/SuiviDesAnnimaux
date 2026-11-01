@@ -459,6 +459,60 @@ check($json['days_left'] === null && $json['ends_at'] === null && $json['kind'] 
 check($code === 200 && $code2 === 403 && $json['error'] === 'termine' && $code3 === 200 && $json3['open'] === false && $json3['days_left'] === 0
     && count($json3['messages']) === 4, 'Suivi : terminé, historique encore lisible, plus d’envoi');
 
+// ===== Annuaire des structures et questions (deux choix séparés, désactivés par défaut) =====
+[$code, $json] = api('GET', '/api/annuaire?lat=43.8367&lon=4.36');
+[$code2] = http('visiteur', "/structure?id=$organisationId");
+check($code === 200 && $json['organisations'] === [] && $code2 === 404, 'Annuaire : structure absente tant qu’elle ne l’a pas choisi');
+[$code, $json] = api('GET', '/api/annuaire?lat=abc&lon=4');
+check($code === 400 && $json['error'] === 'position', 'Annuaire : position non valable refusée');
+$token = csrf('a', "/compte/structure?id=$organisationId");
+http('a', "/compte/structure?id=$organisationId", ['csrf' => $token, 'action' => 'infos', 'name' => 'Asso Test', 'contact_email' => 'contact@asso-test.fr',
+    'phone' => '04 66 00 00 00', 'address' => '12 rue de la République, 30000 Nîmes', 'siret' => '']);
+http('a', "/compte/structure?id=$organisationId", ['csrf' => $token, 'action' => 'annuaire', 'directory_listed' => '1',
+    'description' => 'Refuge pour chats et chiens.', 'species' => 'Chats, chiens', 'website' => 'asso-test.fr']);
+$org = q('SELECT * FROM organisations WHERE id = ?', [$organisationId])->fetch();
+check((int)$org['directory_listed'] === 1 && (int)$org['accepts_questions'] === 0 && abs((float)$org['latitude'] - 43.836699) < 0.0001
+    && $org['city'] === 'Nîmes' && $org['website'] === 'https://asso-test.fr', 'Annuaire : inscription et adresse située');
+[$code, $json] = api('GET', '/api/annuaire?lat=43.85&lon=4.35&km=20');
+[, $far] = api('GET', '/api/annuaire?lat=48.8566&lon=2.3522');
+check($code === 200 && count($json['organisations']) === 1 && $json['organisations'][0]['name'] === 'Asso Test' && $json['organisations'][0]['distance_km'] < 3
+    && $json['organisations'][0]['accepts_questions'] === false && $json['organisations'][0]['phone'] === '04 66 00 00 00' && $far['organisations'] === [],
+    'Annuaire : structure trouvée autour de Nîmes, pas autour de Paris');
+[$code, $body] = http('visiteur', "/structure?id=$organisationId");
+check($code === 200 && str_contains($body, 'Refuge pour chats') && !str_contains($body, 'Poser une question'), 'Annuaire : page publique sans questions');
+[$code, $json] = api('POST', '/api/question', ['organisation' => (string)$organisationId, 'name' => 'Claire', 'email' => 'claire@test.fr', 'body' => 'Adoptez-vous des chats seniors ?']);
+check($code === 400 && str_contains($json['message'], 'ne reçoit pas'), 'Questions : refusées tant que la structure ne les accepte pas');
+http('a', "/compte/structure?id=$organisationId", ['csrf' => $token, 'action' => 'annuaire', 'directory_listed' => '1', 'accepts_questions' => '1',
+    'description' => 'Refuge pour chats et chiens.', 'species' => 'Chats, chiens', 'website' => 'https://asso-test.fr']);
+[$code, $json] = api('POST', '/api/question', ['organisation' => (string)$organisationId, 'name' => 'Claire', 'email' => 'claire@test.fr', 'body' => 'Adoptez-vous des chats seniors ?']);
+$log = (string)@file_get_contents(STORAGE_DIR . '/mails.log');
+check($code === 200 && str_contains($json['url'], '/question?c=') && str_contains($log, "À : contact@asso-test.fr\nRépondre à : claire@test.fr")
+    && str_contains($log, 'Votre question à Asso Test'), 'Questions : par l’API, structure prévenue (Répondre = la personne), accusé de réception');
+$questionUrl = $json['url'];
+[$code, $json] = api('POST', '/api/question', ['organisation' => (string)$organisationId, 'name' => 'X', 'email' => 'pas-une-adresse', 'body' => 'Bonjour bonjour']);
+check($code === 400, 'Questions : adresse e-mail non valable refusée');
+$token2 = csrf('visiteur', "/structure?id=$organisationId");
+[$code, $body] = http('visiteur', "/structure?id=$organisationId", ['csrf' => $token2, 'name' => 'Paul', 'email' => 'paul@test.fr', 'body' => 'Quels sont vos horaires de visite ?']);
+check($code === 200 && str_contains($body, 'Question envoyée'), 'Questions : par la page publique');
+[$code, $body] = http('a', "/compte/questions?o=$organisationId");
+check($code === 200 && str_contains($body, 'chats seniors') && str_contains($body, 'horaires de visite'), 'Questions : liste de la structure');
+$questionId = (int)q("SELECT id FROM organisation_questions WHERE email = 'claire@test.fr'")->fetchColumn();
+$token = csrf('a', "/compte/questions?o=$organisationId");
+http('a', "/compte/questions?o=$organisationId", ['csrf' => $token, 'question' => (string)$questionId, 'action' => 'repondre', 'answer' => 'Oui, avec plaisir !']);
+[$code, $body] = http('visiteur', str_replace(BASE, '', $questionUrl));
+check($code === 200 && str_contains($body, 'Oui, avec plaisir') && str_contains((string)@file_get_contents(STORAGE_DIR . '/mails.log'), 'Réponse de Asso Test'),
+    'Questions : réponse envoyée par e-mail et visible avec le lien');
+[$code] = http('b', "/compte/questions?o=$organisationId");
+check($code === 404, 'Questions : liste refusée à un non-membre');
+[$code, $body] = http('visiteur', '/annuaire?q=' . rawurlencode('Nîmes'));
+check($code === 200 && str_contains($body, 'Asso Test') && str_contains($body, 'répond aux questions'), 'Annuaire : recherche par commune');
+q('UPDATE organisation_questions SET created_at = ? WHERE 1', [now()]);
+for ($i = 0; $i < 5; $i++) {
+    api('POST', '/api/question', ['organisation' => (string)$organisationId, 'name' => 'Robot', 'email' => "r$i@test.fr", 'body' => 'Question répétée numéro ' . $i]);
+}
+[$code, $json] = api('POST', '/api/question', ['organisation' => (string)$organisationId, 'name' => 'Robot', 'email' => 'r9@test.fr', 'body' => 'Encore une question']);
+check($code === 429 && $json['error'] === 'trop_essais', 'Questions : nombre limité par adresse IP');
+
 // Limite des codes faux
 for ($i = 0; $i < 10; $i++) {
     api('POST', '/api/code', ['code' => 'AAAA-AAAA', 'device' => 'x']);

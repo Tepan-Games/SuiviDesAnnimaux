@@ -68,6 +68,17 @@ CREATE TABLE IF NOT EXISTS organisations (
     address VARCHAR(255) NOT NULL DEFAULT '',
     siret VARCHAR(20) NOT NULL DEFAULT '',
     created_at DATETIME NOT NULL,
+    -- Annuaire et questions : deux choix séparés de la structure (désactivés par défaut).
+    directory_listed TINYINT(1) NOT NULL DEFAULT 0,
+    accepts_questions TINYINT(1) NOT NULL DEFAULT 0,
+    description VARCHAR(600) NOT NULL DEFAULT '',
+    species VARCHAR(200) NOT NULL DEFAULT '',
+    website VARCHAR(255) NOT NULL DEFAULT '',
+    city VARCHAR(120) NOT NULL DEFAULT '',
+    -- Position de l'adresse (Base Adresse Nationale), pour la recherche « À proximité ».
+    latitude DECIMAL(9,6) NULL,
+    longitude DECIMAL(9,6) NULL,
+    KEY ix_org_directory (directory_listed, latitude, longitude),
     CONSTRAINT fk_org_owner FOREIGN KEY (owner_user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -254,4 +265,23 @@ CREATE TABLE IF NOT EXISTS animal_link_messages (
     read_at DATETIME NULL,
     KEY ix_link_messages (link_id, id),
     CONSTRAINT fk_link_messages FOREIGN KEY (link_id) REFERENCES animal_links(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Questions posées à une structure (sans compte) ; la réponse est envoyée par e-mail et visible avec le lien de la question.
+CREATE TABLE IF NOT EXISTS organisation_questions (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organisation_id INT UNSIGNED NOT NULL,
+    name VARCHAR(120) NOT NULL,
+    email VARCHAR(190) NOT NULL,
+    body TEXT NOT NULL,
+    token_hash CHAR(64) NOT NULL,
+    ip VARCHAR(45) NOT NULL DEFAULT '',
+    created_at DATETIME NOT NULL,
+    answer TEXT NULL,
+    answered_by INT UNSIGNED NULL,
+    answered_at DATETIME NULL,
+    closed_at DATETIME NULL,
+    UNIQUE KEY ux_questions_hash (token_hash),
+    KEY ix_questions_org (organisation_id, created_at),
+    CONSTRAINT fk_questions_org FOREIGN KEY (organisation_id) REFERENCES organisations(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
